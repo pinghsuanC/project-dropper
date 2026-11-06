@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+.venv/
+.ruff_cache/
+__init__.py
+
+# editor
+*.code-workspace
+.vscode/
+
+# secrets
+.env
+.env*
+*.pem
+
+# sqlite
+server/data/
+*.sqlite3
+*.db
