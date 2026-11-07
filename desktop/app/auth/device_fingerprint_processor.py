@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import subprocess
 
@@ -17,24 +18,20 @@ class DeviceFingerprintProcessor:
     def get_public(self) -> str:
         pass
 
+    # Generate a plain sha hashed unique device fingerprint based on system information
     def get_device_fingerprint(self) -> str:
         device_info = self.get_device_info()
 
         concatenated_info = ""
+        # len + info to ensure uniqueness and avoid collisions
         for code in [self.normalize(code) for code in device_info.values()]:
             concatenated_info += str(len(code)) + code
 
         # Create a SHA256 hash of the concatenated string
-        # return hmac.new(
-        #    os.environ.get("DEVICE_SHA256_KEY").encode(),
-        #    concatenated_info.encode(),
-        #    hashlib.sha256,
-        # ).hexdigest()
-
-        return concatenated_info
+        return hashlib.sha256(concatenated_info.encode()).hexdigest()
 
     def normalize(self, s: str) -> str:
-        return s.strip().lower().replace("-", "").replace(" ", "")
+        return s.strip().lower().replace("-", "_").replace(" ", "_")
 
     def get_device_info(self):
         # To ensure safety, get a few other system info

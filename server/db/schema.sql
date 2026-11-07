@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS profile (
 
 CREATE TABLE IF NOT EXISTS device_info (
     id               TEXT    NOT NULL PRIMARY KEY,
-    profile_id       TEXT    NOT NULL,
+    profile_id       TEXT    ,
     name             TEXT    NOT NULL,
     fingerprint      TEXT    NOT NULL,
     public_key       TEXT    NOT NULL UNIQUE,

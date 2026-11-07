@@ -32,7 +32,7 @@ class DeviceAuth:
         )
         return private_key
 
-    def get_public_key_pem(self) -> str:
+    def get_public_key(self) -> str:
 
         # Get the public key from the private key
         public_key = self.private_key.public_key()
