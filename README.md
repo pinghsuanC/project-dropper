@@ -132,7 +132,7 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 
 ## Roadmap
 
-- [ ] M1 Server skeleton: tables, save + fetch a device, initial register round calls deskto -> server -> response
+- [x] M1 Server skeleton: tables, save + fetch a device, initial register round calls deskto -> server -> response
 - [ ] M2 Auth: challenge → sign → session token; reject replay and expired challenges
 - [ ] M3 Tests: `python -m unittest` covers the auth failure cases
 - [ ] M4 Storage: upload a file to R2 through `storage.py`
