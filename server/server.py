@@ -1,15 +1,17 @@
-from data.routes import router as data_router
-from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from auth.routes import router as auth_router
+from db.database_connection import DatabaseConnection
 
-load_dotenv()
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app):
+    DatabaseConnection().init_db()
+    yield
+    # anything after yield runs on shutdown
+
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(auth_router)
-app.include_router(data_router)
-
-
-@app.get("/")
-def get_test():
-    return {"message": "You have reached the test endpoint!"}
