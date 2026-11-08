@@ -1,14 +1,14 @@
 import time
 
-import repositories.auth_challenge as challenge_repo
-import repositories.devices as device_repo
-import repositories.session as session_repo
-from enums import DeviceStatus, Platform
-from exceptions import DeviceAlreadyExists, InvalidPublicKey
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+import repositories.auth_challenge as challenge_repo
+import repositories.devices as device_repo
+import repositories.session as session_repo
 from auth import crypto
+from enums import DeviceStatus, Platform
+from exceptions import DeviceAlreadyExists, InvalidPublicKey
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
