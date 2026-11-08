@@ -4,7 +4,7 @@ from pathlib import Path
 DEVICE_FILE = Path(__file__).resolve().parent / "device.json"
 
 
-class DeviceHelper:
+class DeviceIdHelper:
     def __init__(self):
         pass
 
@@ -14,6 +14,7 @@ class DeviceHelper:
 
     @staticmethod
     def load_device_id() -> str | None:
+        print(DEVICE_FILE)
         if not DEVICE_FILE.exists():
             return None
         return json.loads(DEVICE_FILE.read_text())["device_id"]

@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -44,5 +45,7 @@ class DeviceAuth:
         ).decode()
         return public_pem
 
-    def sign(self, challenge: bytes) -> bytes:
-        return self.private_key.sign(challenge)
+    def sign(self, challenge: str) -> str:
+        signature = self.private_key.sign(challenge.encode())
+        signature_b64 = base64.b64encode(signature).decode()
+        return signature_b64
