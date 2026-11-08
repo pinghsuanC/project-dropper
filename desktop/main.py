@@ -1,6 +1,4 @@
-import qrcode
 import requests
-
 from app.auth.device_auth import DeviceAuth
 from app.clients import auth_apis
 from app.helper.device_id_helper import DeviceIdHelper
@@ -38,7 +36,7 @@ def main():
         if e.status == 400:
             print("The signature has been rejected, process aborted.")
 
-    img = qrcode.make("the link you send to your phone")
+    # img = qrcode.make("the link you send to your phone")
     # img.show()
 
 
