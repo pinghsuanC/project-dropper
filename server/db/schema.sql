@@ -48,3 +48,25 @@ CREATE TABLE IF NOT EXISTS device_pair (
     CHECK (status IN ('active', 'revoked')),
     UNIQUE (device_1_id, device_2_id)
 );
+
+CREATE TABLE IF NOT EXISTS auth_challenge (
+    challenge    TEXT NOT NULL PRIMARY KEY,
+    device_id    TEXT NOT NULL,
+    created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+    expires_at   INTEGER NOT NULL DEFAULT (unixepoch() + 60),
+
+    FOREIGN KEY (device_id) REFERENCES device_info(id)
+);
+
+
+CREATE TABLE IF NOT EXISTS session (
+    id              TEXT NOT NULL PRIMARY KEY,
+    token_hashed    TEXT NOT NULL UNIQUE,
+    device_id       TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+    expires_at      INTEGER  NOT NULL DEFAULT (unixepoch() + 24 * 3600),
+
+    FOREIGN KEY (device_id) REFERENCES device_info(id),
+    CHECK (status IN ('active', 'revoked'))
+);
