@@ -1,4 +1,5 @@
 import requests
+
 from app.auth.device_auth import DeviceAuth
 from app.clients import auth_apis
 from app.helper.device_id_helper import DeviceIdHelper

@@ -3,6 +3,7 @@ import socket
 
 import dotenv
 import requests
+
 from app.auth.device_auth import DeviceAuth
 from app.auth.device_fingerprint_processor import DeviceFingerprintProcessor
 from app.helper.device_id_helper import DeviceIdHelper

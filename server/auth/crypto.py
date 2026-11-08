@@ -8,8 +8,9 @@ import dotenv
 from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from exceptions import InvalidPublicKey, InvalidSignature
 from fastapi import HTTPException
+
+from exceptions import InvalidPublicKey, InvalidSignature
 
 dotenv.load_dotenv()
 HMAC_SECRET = os.getenv("HMAC_SECRET")
