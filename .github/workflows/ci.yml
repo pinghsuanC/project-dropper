@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 permissions:
   contents: write
@@ -12,11 +12,34 @@ jobs:
   ruff:
     runs-on: ubuntu-latest
     steps:
-      - run: pip install ruff==0.17.3
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-      - run: pip install ruff
+      - run: pip install ruff==0.17.4
       - run: ruff check .
       - run: ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    env:
+      HMAC_SECRET: ci-test-secret        # CI has no .env; use your real variable name
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+
+  merge:
+    needs: [ruff, test]                  # only merges if BOTH pass
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr merge --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

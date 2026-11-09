@@ -4,7 +4,7 @@ from pathlib import Path
 DEVICE_FILE = Path(__file__).resolve().parent / "device.json"
 
 
-class DeviceIdHelper:
+class DeviceHelper:
     def __init__(self):
         pass
 
@@ -18,3 +18,6 @@ class DeviceIdHelper:
         if not DEVICE_FILE.exists():
             return None
         return json.loads(DEVICE_FILE.read_text())["device_id"]
+
+    def delete_device_id() -> None:
+        DEVICE_FILE.unlink(missing_ok=True)

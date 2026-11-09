@@ -12,7 +12,3 @@ class DeviceAlreadyExists(Exception):
 
 class ChallengeAlreadyExists(Exception):
     pass
-
-
-class InvalidSignature(Exception):
-    pass

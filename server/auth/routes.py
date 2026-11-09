@@ -1,36 +1,61 @@
 import time
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import (
+    APIRouter,
+    HTTPException,
+)
+from fastapi.security import HTTPBearer
 
 import repositories.auth_challenge as challenge_repo
 import repositories.devices as device_repo
 import repositories.session as session_repo
 from auth import crypto
-from enums import DeviceStatus, Platform
+from auth.dependencies import CurrentSession
+from enums import DeviceStatus
 from exceptions import DeviceAlreadyExists, InvalidPublicKey
+from schemas.auth import (
+    ChallengeRequest,
+    ChallengeVerifyRequest,
+    MeResponse,
+    RegisterRequest,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-class RegisterRequest(BaseModel):
-    name: str
-    public_key: str
-    platform: Platform
-    fingerprint: str
+bearer = HTTPBearer()
 
 
-class ChallengeRequest(BaseModel):
-    device_id: str
+@router.get("/me", response_model=MeResponse)
+def me(deviceSession: CurrentSession):
+
+    if deviceSession is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired session",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    device_id = deviceSession["device_id"]
+    device = device_repo.get_device(device_id)
+
+    if device is None:
+        raise HTTPException(status_code=404, detail="Device not found")
+    if device["status"] != DeviceStatus.ACTIVE:
+        raise HTTPException(status_code=403, detail="Device revoked")
+
+    return {
+        "message": "Your session is confirmed active.",
+        "data": {
+            "isActive": True,
+            "device_id": device_id,
+            "name": device["name"],
+            "platform": device["platform"],
+        },
+    }
 
 
-class ChallengeVerifyRequest(BaseModel):
-    device_id: str
-    challenge: str
-    signature: str
-
-
-@router.post("/verify_challenge")
+@router.post("/verify-challenge")
 def verify_challeng(body: ChallengeVerifyRequest):
     unauthorized = HTTPException(
         status_code=401, detail="Invalid challenge or signature"
@@ -46,14 +71,12 @@ def verify_challeng(body: ChallengeVerifyRequest):
         raise HTTPException(status_code=403, detail="Device revoked")
 
     challenge_row = challenge_repo.get_challenge(challenge)
+    challenge_repo.clear_stale_challenge(device_id)
     if challenge_row is None:
-        print("1")
         raise unauthorized
     if challenge_row["device_id"] != body.device_id:
-        print("2")
         raise unauthorized
     if challenge_row["expires_at"] < time.time():
-        print("3")
         raise unauthorized
 
     if not crypto.verify_signature(device["public_key"], challenge, signature):
@@ -64,7 +87,7 @@ def verify_challeng(body: ChallengeVerifyRequest):
     session_repo.insert_session(crypto.hash_session_token(session_token), device_id)
 
     return {
-        "message": "Challenge generated.",
+        "message": ":D Congratulations. Challenge succeeded.",
         "data": {"token": session_token},
     }
 
