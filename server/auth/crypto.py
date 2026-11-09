@@ -1,16 +1,16 @@
 import base64
+import binascii
 import hashlib
 import hmac
 import os
 import secrets
 
 import dotenv
-from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-from fastapi import HTTPException
 
-from exceptions import InvalidPublicKey, InvalidSignature
+from exceptions import InvalidPublicKey
 
 dotenv.load_dotenv()
 HMAC_SECRET = os.getenv("HMAC_SECRET")
@@ -34,8 +34,8 @@ def verify_signature(device_public_key, challenge, signature) -> bool:
             challenge.encode(),  # the exact bytes the desktop signed
         )
 
-    except InvalidSignature:
-        raise HTTPException(status_code=401, detail="Invalid challenge or signature")
+    except (InvalidSignature, binascii.Error, ValueError):
+        return False
 
     return True
 

@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 PRIVATE_KEY_FILE = "../device_key.pem"
 
 
-class DeviceAuth:
+class DeviceCrypto:
     def __init__(self):
         # load or create on start up
         self.key_path = Path(PRIVATE_KEY_FILE)

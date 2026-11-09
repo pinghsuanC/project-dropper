@@ -134,7 +134,7 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 
 - [x] M1 Server skeleton: tables, save + fetch a device, initial register round calls deskto -> server -> response
 - [x] M2 Auth: get challenge → sign → server verify and return session token -> desktop gets session token; reject bad and expired challenges
-- [ ] M3 Tests: `python -m unittest` covers the auth failure cases
+- [x] M3 Tests: `python -m unittest` covers the auth failure cases
 - [ ] M4 Storage: upload a file to R2 through `storage.py`
 - [ ] M5 Transfer: download with a presigned URL, verify the checksum, delete
 - [ ] M6 Pairing: QR pairing adds a second device

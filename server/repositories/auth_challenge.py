@@ -6,9 +6,16 @@ def get_challenge(challenge: str) -> dict | None:
     row = None
     with DatabaseConnection() as conn:
         row = conn.execute(
-            "SELECT * FROM auth_challenge WHERE challenge=?",
+            "SELECT * FROM auth_challenge WHERE challenge=? AND expires_at > unixepoch()",
             (challenge,),
         ).fetchone()
+
+        # delete the challenge
+        if row is not None:
+            conn.execute(
+                "DELETE FROM auth_challenge WHERE challenge = ?",
+                (challenge,),
+            )
     return dict(row) if row else None
 
 
