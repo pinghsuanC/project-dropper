@@ -23,8 +23,10 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 # first. load_dotenv() does not override variables that are already set, so
 # your real .env can't sneak the real database back in.
 _TMP_DIR = tempfile.TemporaryDirectory()
+_TEST_DB = Path(_TMP_DIR.name) / "test_file.db"
 os.environ["DB_LOCATION"] = str(Path(_TMP_DIR.name) / "test.db")
 os.environ.setdefault("HMAC_SECRET", "test-secret-not-for-production")
+os.environ["DB_PATH"] = str(_TEST_DB)
 # ↑ use whatever name your crypto.py reads; CI has no .env, so it needs a value
 
 from fastapi.testclient import TestClient

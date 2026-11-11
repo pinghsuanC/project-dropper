@@ -6,13 +6,17 @@ import dotenv
 
 SERVER_DIR = Path(__file__).resolve().parent.parent  # db/ → server/
 dotenv.load_dotenv(SERVER_DIR / ".env")
-DB_PATH = SERVER_DIR / os.getenv("DB_PATH")
+db_path = SERVER_DIR / os.getenv("DB_PATH")
+if not db_path:
+    raise RuntimeError("DB_PATH is not set (check server/.env)")
+DB_PATH = SERVER_DIR / db_path
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
 class DatabaseConnection:
     def __init__(self):
         self.db_path = DB_PATH
+
         self.schema_path = SCHEMA_PATH
         self.conn = None
 
