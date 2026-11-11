@@ -1,10 +1,12 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 from enums import Platform
 
 
 class MeData(BaseModel):
-    device_id: str
+    device_id: UUID
     name: str
     platform: str
 
@@ -22,10 +24,10 @@ class RegisterRequest(BaseModel):
 
 
 class ChallengeRequest(BaseModel):
-    device_id: str
+    device_id: UUID
 
 
 class ChallengeVerifyRequest(BaseModel):
-    device_id: str
+    device_id: UUID
     challenge: str
     signature: str

@@ -135,7 +135,9 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 - [x] M1 Server skeleton: tables, save + fetch a device, initial register round calls deskto -> server -> response
 - [x] M2 Auth: get challenge → sign → server verify and return session token -> desktop gets session token; reject bad and expired challenges
 - [x] M3 Tests: `python -m unittest` covers the auth failure cases
-- [ ] M4 Storage: upload a file to R2 through `storage.py`
-- [ ] M5 Transfer: download with a presigned URL, verify the checksum, delete
-- [ ] M6 Pairing: QR pairing adds a second device
-- [ ] M7 Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots
+- [x] M4 Storage: upload a file to R2 through `storage.py`, prepare the endpoint for mobile uploads.
+- [x] M5 Transfer: download with a presigned URL, verify the checksum, delete
+- [ ] M6 Mobile app preparation: device fingerprint (Android ID) and its own Ed25519 key in secure storage; register + login like the desktop; scan the desktop’s QR (pairing code + server URL) and send a pairing claim to the server, UI design
+- [ ] M7 Pairing: QR pairing adds a second device, long polling
+- [ ] M8 Prepare domain & deploy to Oracle Cloud VM
+- [ ] M9 Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots

@@ -33,7 +33,7 @@ def insert_device(name, public_key, fingerprint, platform) -> str:
     return device_id
 
 
-def get_device(device_id: str) -> dict | None:
+def get_device_by_id(device_id: str) -> dict | None:
     """Get device row by device id."""
     row = None
     with DatabaseConnection() as conn:

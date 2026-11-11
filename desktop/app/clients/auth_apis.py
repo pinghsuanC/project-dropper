@@ -15,14 +15,15 @@ dotenv.load_dotenv("../../.env")
 _BASE_URL = os.getenv("API_BASE_URL")
 
 
-def get_challenge():
+def get_challenge(no_print: bool = False):
     response = requests.post(
         f"{_BASE_URL}/auth/challenge",
         json={"device_id": DeviceHelper.load_device_id()},
         timeout=5,
     )
     data = _check(response)
-    print(data["message"])
+    if not no_print:
+        print(data["message"])
     challenge = data["data"]["challenge"]
     return challenge
 

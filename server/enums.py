@@ -15,3 +15,10 @@ class Platform(StrEnum):
 class SessionStatus(StrEnum):
     ACTIVE = "active"
     REVOKED = "revoked"
+
+
+class FileStatus(StrEnum):
+    PENDING = "pending"
+    UPLOADED = "uploaded"
+    DELETED = "deleted"
+    DOWNLOADED = "downloaded"
