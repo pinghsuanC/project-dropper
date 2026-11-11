@@ -41,7 +41,7 @@ class DeviceAuthClient:
                 return
         else:
             try:
-                auth_apis.get_challenge()
+                auth_apis.get_challenge(no_print=True)
             except ApiError as e:
                 if e.status != 404:
                     raise

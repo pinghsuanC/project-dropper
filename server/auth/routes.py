@@ -36,8 +36,8 @@ def me(deviceSession: CurrentSession):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    device_id = deviceSession["device_id"]
-    device = device_repo.get_device(device_id)
+    device_id = str(deviceSession["device_id"])
+    device = device_repo.get_device_by_id(device_id)
 
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
@@ -60,11 +60,11 @@ def verify_challeng(body: ChallengeVerifyRequest):
     unauthorized = HTTPException(
         status_code=401, detail="Invalid challenge or signature"
     )
-    device_id = body.device_id
+    device_id = str(body.device_id)
     challenge = body.challenge
     signature = body.signature
 
-    device = device_repo.get_device(device_id)
+    device = device_repo.get_device_by_id(device_id)
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     if device["status"] != DeviceStatus.ACTIVE:
@@ -74,7 +74,7 @@ def verify_challeng(body: ChallengeVerifyRequest):
     challenge_repo.clear_stale_challenge(device_id)
     if challenge_row is None:
         raise unauthorized
-    if challenge_row["device_id"] != body.device_id:
+    if challenge_row["device_id"] != device_id:
         raise unauthorized
     if challenge_row["expires_at"] < time.time():
         raise unauthorized
@@ -94,9 +94,9 @@ def verify_challeng(body: ChallengeVerifyRequest):
 
 @router.post("/challenge")
 def invoke_challenge_request(body: ChallengeRequest):
-    device_id = body.device_id
+    device_id = str(body.device_id)
 
-    device = device_repo.get_device(device_id)
+    device = device_repo.get_device_by_id(device_id)
 
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")

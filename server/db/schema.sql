@@ -70,3 +70,21 @@ CREATE TABLE IF NOT EXISTS session (
     FOREIGN KEY (device_id) REFERENCES device_info(id),
     CHECK (status IN ('active', 'revoked'))
 );
+
+
+CREATE TABLE IF NOT EXISTS file (
+    id              TEXT NOT NULL PRIMARY KEY,
+    sender_id       TEXT NOT NULL,
+    receiver_id       TEXT NOT NULL,
+    file_name       TEXT NOT NULL,
+    object_key      TEXT NOT NULL UNIQUE,
+    size            INTEGER NOT NULL,
+    content_type    TEXT NOT NULL,
+    checksum        TEXT NOT NULL,
+    status          TEXT NOT NULL,
+    created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+
+    FOREIGN KEY (sender_id)   REFERENCES device_info(id),
+    FOREIGN KEY (receiver_id) REFERENCES device_info(id),
+    CHECK (status IN ('pending', 'uploaded', 'downloaded', 'deleted'))
+);

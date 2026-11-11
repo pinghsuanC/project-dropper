@@ -14,7 +14,6 @@ class DeviceHelper:
 
     @staticmethod
     def load_device_id() -> str | None:
-        print(DEVICE_FILE)
         if not DEVICE_FILE.exists():
             return None
         return json.loads(DEVICE_FILE.read_text())["device_id"]
