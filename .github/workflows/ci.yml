@@ -39,6 +39,7 @@ jobs:
 
   merge:
     needs: [ruff, test]                  # only merges if BOTH pass
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - run: gh pr merge --squash "$PR_URL"
