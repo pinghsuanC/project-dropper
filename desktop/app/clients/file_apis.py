@@ -13,6 +13,60 @@ dotenv.load_dotenv("../../.env")
 _BASE_URL = os.getenv("API_BASE_URL")
 
 
+def batch_upload(token: str, paths: list[str]):
+    """Only used for development purpose. Desktop doesn't need a upload. This should happen inside the mobile app
+    For now sending it to myself.
+    This method uploads multiple files.
+    """
+
+    receiver_id = DeviceHelper.load_device_id()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    paths_by_ref = {f"q{i}": path for i, path in enumerate(paths)}
+    file_info_list = [
+        {**FileHelper.describe_file(path), "client_ref": f"q{i}"}
+        for i, path in enumerate(paths)
+    ]
+
+    # ask for presigned upload url
+    response = requests.post(
+        f"{_BASE_URL}/files/prepare-batch-upload",
+        json={"files": file_info_list, "receiver_id": receiver_id},
+        headers=headers,
+        timeout=5,
+    )
+    response = _check(response)
+    data = response["data"]
+    print(response["message"])
+
+    # build the map to find the link
+    upload_info_by_ref = {f["client_ref"]: f for f in data["files"]}
+
+    # upload the bytes to R2
+    uploaded_ids = []
+    for file_info in file_info_list:
+        upload_info = upload_info_by_ref[file_info["client_ref"]]
+        path = paths_by_ref[file_info["client_ref"]]
+        with open(path, "rb") as f:
+            requests.put(
+                upload_info["upload_url"], data=f, timeout=60
+            ).raise_for_status()
+            uploaded_ids.append(upload_info["file_id"])
+
+    # tell server it's done
+    response = requests.post(
+        f"{_BASE_URL}/files/finish-batch-upload",
+        json={"file_ids": uploaded_ids},
+        headers=headers,
+        timeout=5,
+    )
+    response = _check(response)
+    data = response["data"]
+    print(response["message"])
+
+    return data["file_ids"]
+
+
 def upload_file(token: str, path: str):
     """Only used for development purpose. Desktop doesn't need a upload. This should happen inside the mobile app
     For now sending it to myself.
@@ -52,8 +106,8 @@ def upload_file(token: str, path: str):
 
 
 def download_files(token: str):
-    """Only used for development purpose. Desktop doesn't need a upload. This should happen inside the mobile app
-    For now sending it to myself.
+    """
+    Download the files from the cloud storage. Note that after download it's going to do deletion.
     """
     headers = {"Authorization": f"Bearer {token}"}
 
