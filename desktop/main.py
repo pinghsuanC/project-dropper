@@ -11,13 +11,19 @@ def main():
     print("Session info:", check_me)
 
     # test_upload(token)
-    file_apis.download_files(token)
+    # file_apis.download_files(token)
 
     # download file from receiver
+    # test_batch_upload(token)
+    test_download(token)
 
 
 # img = qrcode.make("the link you send to your phone")
 # img.show()
+
+
+def test_batch_upload(token):
+    file_apis.batch_upload(token, paths=["./test.txt", "./img.png"])
 
 
 def test_upload(token):
