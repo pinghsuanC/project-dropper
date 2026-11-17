@@ -1,3 +1,5 @@
+import uuid
+
 from fastapi import (
     APIRouter,
     HTTPException,
@@ -9,14 +11,68 @@ from auth import guards
 from auth.dependencies import CurrentSession
 from enums import FileStatus
 from schemas.files import (
+    FinishBatchUploadRequest,
     FinishDownloadRequest,
     FinishUploadRequest,
+    PrepareBatchUploadRequest,
     PrepareUploadRequest,
+    SentFilesResponse,
 )
 from storage.object_storage import ObjectStorage
 
 router = APIRouter(prefix="/files", tags=["files"])
 bearer = HTTPBearer()
+
+
+@router.post("/prepare-batch-upload")
+def prepare_batch_upload(
+    body: PrepareBatchUploadRequest, deviceSession: CurrentSession
+):
+    """Prepare for uploads for a list of files."""
+
+    if deviceSession is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired session",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    receiver_id = str(body.receiver_id)
+    sender_device = guards.require_valid_session(deviceSession)
+    receiver_device = guards.require_valid_device(receiver_id)
+
+    obj_storage = ObjectStorage()
+    prepared = []
+    for f in body.files:
+        file_id = str(uuid.uuid7())
+        object_key = f"{receiver_id}/{file_id}"
+        prepared.append(
+            {
+                **f,
+                "id": file_id,
+                "object_key": object_key,
+                "upload_url": obj_storage.get_put_presigned_url(object_key),
+                "status": FileStatus.PENDING,
+            }
+        )
+
+    file_repo.insert_multiple_files(
+        sender_device["id"], receiver_device["id"], prepared
+    )
+
+    return {
+        "message": f"{len(prepared)} upload(s) prepared.",
+        "data": {
+            "files": [
+                {
+                    "file_id": p["id"],
+                    "upload_url": p["upload_url"],
+                    "client_ref": p["client_ref"],
+                }
+                for p in prepared
+            ]
+        },
+    }
 
 
 @router.post("/prepare-upload")
@@ -40,6 +96,7 @@ def prepare_upload(body: PrepareUploadRequest, deviceSession: CurrentSession):
         size=body.size,
         content_type=body.content_type,
         checksum=body.checksum,
+        status=FileStatus.PENDING,
     )
 
     obj_storage = ObjectStorage()
@@ -50,6 +107,34 @@ def prepare_upload(body: PrepareUploadRequest, deviceSession: CurrentSession):
     return {
         "message": "Presigned url generated.",
         "data": {"upload_url": upload_url, "file_id": file_id},
+    }
+
+
+@router.post("/finish-batch-upload")
+def finish_batch_upload(body: FinishBatchUploadRequest, session: CurrentSession):
+    sender = guards.require_valid_session(session)
+    file_ids = [str(i) for i in body.file_ids]
+
+    files = file_repo.get_pending_files_for_sender(sender["id"], file_ids)
+    if len(files) != len(file_ids):
+        raise HTTPException(
+            status_code=404, detail="Some files were not found or are not pending."
+        )
+
+    storage = ObjectStorage()
+    for file in files:
+        meta = storage.head_object(file["object_key"])
+        if meta is None or meta["ContentLength"] != file["size"]:
+            raise HTTPException(
+                status_code=409, detail=f"Upload not found or incomplete: {file['id']}"
+            )
+
+    verified_ids = [f["id"] for f in files]
+    file_repo.update_files_status(verified_ids, FileStatus.PENDING, FileStatus.UPLOADED)
+
+    return {
+        "message": f"{len(verified_ids)} file(s) uploaded.",
+        "data": {"file_ids": verified_ids},
     }
 
 
@@ -105,6 +190,29 @@ def check_pending_download(deviceSession: CurrentSession):
     }
 
 
+@router.get("/sent", response_model=SentFilesResponse)
+def get_sent_files(deviceSession: CurrentSession):
+    """Files the caller sent that the receiver hasn't downloaded yet, newest first."""
+
+    sender_device = guards.require_valid_session(deviceSession)
+    files = file_repo.get_sent_files_waiting(sender_device["id"])
+
+    return {
+        "message": f"{len(files)} file(s) waiting.",
+        "data": [
+            {
+                "file_id": f["id"],
+                "file_name": f["file_name"],
+                "size": f["size"],
+                "status": f["status"],
+                "receiver_name": f["receiver_name"],
+                "created_at": f["created_at"],
+            }
+            for f in files
+        ],
+    }
+
+
 @router.get("/prepare-download")
 def prepare_download(deviceSession: CurrentSession):
 
@@ -142,13 +250,13 @@ def finish_download(body: FinishDownloadRequest, deviceSession: CurrentSession):
 
     file_ids = [str(id) for id in body.file_ids]
 
-    files = file_repo.get_files_by_ids(receiver_device["id"], file_ids)
+    files = file_repo.get_uploaded_files_for_receiver(receiver_device["id"], file_ids)
     if not files:
         raise HTTPException(status_code=404, detail="Files not found.")
 
     # okay if not all are found, they may be in other statuses, for example
     retrieved_ids = [f["id"] for f in files]
-    downloaded_files = file_repo.update_files_status(
+    downloaded_files = file_repo.update_files_status_for_receiver(
         receiver_id=receiver_device["id"],
         ids=retrieved_ids,
         original_status=FileStatus.UPLOADED,
@@ -168,7 +276,7 @@ def finish_download(body: FinishDownloadRequest, deviceSession: CurrentSession):
         f["id"] for f in downloaded_files if f["object_key"] in failed_file_keys
     ]
 
-    file_repo.update_files_status(
+    file_repo.update_files_status_for_receiver(
         receiver_id=receiver_device["id"],
         ids=deleted_file_ids,
         original_status=FileStatus.DOWNLOADED,

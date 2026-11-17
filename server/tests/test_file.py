@@ -44,6 +44,8 @@ FINISH_UPLOAD = "/files/finish-upload"
 CHECK_PENDING = "/files/check-pending-download"
 PREPARE_DOWNLOAD = "/files/prepare-download"
 FINISH_DOWNLOAD = "/files/finish-download"
+PREPARE_BATCH_UPLOAD = "/files/prepare-batch-upload"
+FINISH_BATCH_UPLOAD = "/files/finish-batch-upload"
 
 FAKE_PUT_URL = "https://r2.example/put"
 FAKE_GET_URL = "https://r2.example/get"
@@ -479,6 +481,260 @@ class FileFlowTests(unittest.TestCase):
 
         pending = self.client.get(CHECK_PENDING, headers=auth(self.receiver_token))
         self.assertEqual(pending.json()["data"]["files"], [])
+
+    # =============================================================================
+    # Batch helpers
+    # =============================================================================
+    @staticmethod
+    def file_info(ref: str, size: int = 10) -> dict:
+        return {
+            "file_name": f"{ref}.txt",
+            "size": size,
+            "content_type": "text/plain",
+            "checksum": f"sum-{ref}",
+            "client_ref": ref,
+        }
+
+    def prepare_batch(self, files: list[dict], token=None, receiver_id=None):
+        return self.client.post(
+            PREPARE_BATCH_UPLOAD,
+            json={"receiver_id": receiver_id or self.receiver_id, "files": files},
+            headers=auth(token or self.sender_token),
+        )
+
+    def finish_batch(self, file_ids: list[str], token=None):
+        return self.client.post(
+            FINISH_BATCH_UPLOAD,
+            json={"file_ids": file_ids},
+            headers=auth(token or self.sender_token),
+        )
+
+    def prepared_batch(self, sizes: list[int]) -> list[str]:
+        """Prepare one pending file per size. Returns file ids in order."""
+        files = [self.file_info(f"f{i}", size) for i, size in enumerate(sizes)]
+        response = self.prepare_batch(files)
+        self.assertEqual(response.status_code, 200, response.text)
+        return [f["file_id"] for f in response.json()["data"]["files"]]
+
+    def storage_has(self, sizes_by_id: dict[str, int]) -> None:
+        """Make head_object report these files as stored with these sizes."""
+        metas = {
+            f"{self.receiver_id}/{fid}": {"ContentLength": size}
+            for fid, size in sizes_by_id.items()
+        }
+        self.storage.head_object.side_effect = lambda key: metas.get(key)
+
+    # =============================================================================
+    # prepare-batch-upload
+    # =============================================================================
+    def test_prepare_batch_creates_pending_rows_and_urls(self):
+        files = [self.file_info("a", 5), self.file_info("b", 7)]
+
+        response = self.prepare_batch(files)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        out = response.json()["data"]["files"]
+        self.assertEqual([f["client_ref"] for f in out], ["a", "b"])
+        self.assertTrue(all(f["upload_url"] == FAKE_PUT_URL for f in out))
+        self.assertEqual(len({f["file_id"] for f in out}), 2)
+
+        for sent, returned in zip(files, out):
+            row = db_file(returned["file_id"])
+            self.assertIsNotNone(row)
+            self.assertEqual(row["status"], FileStatus.PENDING)
+            self.assertEqual(row["sender_id"], self.sender_id)
+            self.assertEqual(row["receiver_id"], self.receiver_id)
+            self.assertEqual(row["file_name"], sent["file_name"])
+            self.assertEqual(row["size"], sent["size"])
+            self.assertEqual(row["checksum"], sent["checksum"])
+            self.assertEqual(
+                row["object_key"], f"{self.receiver_id}/{returned['file_id']}"
+            )
+
+        self.assertEqual(self.storage.get_put_presigned_url.call_count, 2)
+
+    def test_prepare_batch_single_file(self):
+        response = self.prepare_batch([self.file_info("only")])
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["data"]["files"]), 1)
+
+    def test_prepare_batch_empty_list_is_422(self):
+        response = self.prepare_batch([])
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_prepare_batch_over_20_files_is_422(self):
+        response = self.prepare_batch([self.file_info(f"f{i}") for i in range(21)])
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_prepare_batch_exactly_20_files_is_ok(self):
+        response = self.prepare_batch([self.file_info(f"f{i}") for i in range(20)])
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()["data"]["files"]), 20)
+
+    def test_prepare_batch_missing_client_ref_is_422(self):
+        info = self.file_info("a")
+        del info["client_ref"]
+
+        response = self.prepare_batch([info])
+
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_prepare_batch_without_auth_header_is_401(self):
+        response = self.client.post(
+            PREPARE_BATCH_UPLOAD,
+            json={"receiver_id": self.receiver_id, "files": [self.file_info("a")]},
+        )
+        self.assertEqual(response.status_code, 401, response.text)
+
+    def test_prepare_batch_with_invalid_token_is_401(self):
+        response = self.prepare_batch([self.file_info("a")], token="not-a-real-token")
+        self.assertEqual(response.status_code, 401, response.text)
+        self.storage.get_put_presigned_url.assert_not_called()
+
+    def test_prepare_batch_to_unknown_receiver_is_rejected(self):
+        response = self.prepare_batch(
+            [self.file_info("a")], receiver_id=str(uuid.uuid4())
+        )
+        self.assertEqual(response.status_code, 401, response.text)
+        self.storage.get_put_presigned_url.assert_not_called()
+
+    def test_prepare_batch_to_revoked_receiver_is_403(self):
+        set_device_status(self.receiver_id, DeviceStatus.REVOKED)
+        response = self.prepare_batch([self.file_info("a")])
+        self.assertEqual(response.status_code, 403, response.text)
+
+    def test_prepare_batch_from_revoked_sender_is_403(self):
+        set_device_status(self.sender_id, DeviceStatus.REVOKED)
+        response = self.prepare_batch([self.file_info("a")])
+        self.assertEqual(response.status_code, 403, response.text)
+
+    def test_prepare_batch_with_non_uuid_receiver_is_422(self):
+        response = self.prepare_batch([self.file_info("a")], receiver_id="not-a-uuid")
+        self.assertEqual(response.status_code, 422, response.text)
+
+    # =============================================================================
+    # finish-batch-upload
+    # =============================================================================
+    def test_finish_batch_marks_all_uploaded(self):
+        ids = self.prepared_batch([5, 7])
+        self.storage_has({ids[0]: 5, ids[1]: 7})
+
+        response = self.finish_batch(ids)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertCountEqual(response.json()["data"]["file_ids"], ids)
+        for fid in ids:
+            self.assertEqual(db_file(fid)["status"], FileStatus.UPLOADED)
+
+    def test_finish_batch_subset_only_updates_those(self):
+        ids = self.prepared_batch([5, 7])
+        self.storage_has({ids[0]: 5})
+
+        response = self.finish_batch([ids[0]])
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(db_file(ids[0])["status"], FileStatus.UPLOADED)
+        self.assertEqual(db_file(ids[1])["status"], FileStatus.PENDING)
+
+    def test_finish_batch_one_missing_object_is_409_and_updates_nothing(self):
+        ids = self.prepared_batch([5, 7])
+        self.storage_has({ids[0]: 5})  # second file never reached storage
+
+        response = self.finish_batch(ids)
+
+        self.assertEqual(response.status_code, 409, response.text)
+        self.assertIn(ids[1], response.text)
+        for fid in ids:
+            self.assertEqual(db_file(fid)["status"], FileStatus.PENDING)
+
+    def test_finish_batch_size_mismatch_is_409_and_updates_nothing(self):
+        ids = self.prepared_batch([5, 7])
+        self.storage_has({ids[0]: 5, ids[1]: 6})
+
+        response = self.finish_batch(ids)
+
+        self.assertEqual(response.status_code, 409, response.text)
+        for fid in ids:
+            self.assertEqual(db_file(fid)["status"], FileStatus.PENDING)
+
+    def test_finish_batch_unknown_id_is_404(self):
+        response = self.finish_batch([str(uuid.uuid4())])
+        self.assertEqual(response.status_code, 404, response.text)
+        self.storage.head_object.assert_not_called()
+
+    def test_finish_batch_with_one_unknown_id_is_404_and_updates_nothing(self):
+        ids = self.prepared_batch([5])
+        self.storage_has({ids[0]: 5})
+
+        response = self.finish_batch([ids[0], str(uuid.uuid4())])
+
+        self.assertEqual(response.status_code, 404, response.text)
+        self.assertEqual(db_file(ids[0])["status"], FileStatus.PENDING)
+
+    def test_finish_batch_by_non_sender_is_404(self):
+        ids = self.prepared_batch([5])
+        self.storage_has({ids[0]: 5})
+
+        response = self.finish_batch(ids, token=self.receiver_token)
+
+        self.assertEqual(response.status_code, 404, response.text)
+        self.assertEqual(db_file(ids[0])["status"], FileStatus.PENDING)
+
+    def test_finish_batch_twice_is_404(self):
+        ids = self.prepared_batch([5])
+        self.storage_has({ids[0]: 5})
+        self.assertEqual(self.finish_batch(ids).status_code, 200)
+
+        response = self.finish_batch(ids)
+
+        self.assertEqual(response.status_code, 404, response.text)
+
+    def test_finish_batch_accepts_single_upload_files(self):
+        """A file from /prepare-upload can be finished through the batch route."""
+        file_id = self.prepare_upload(size=9).json()["data"]["file_id"]
+        self.storage_has({file_id: 9})
+
+        response = self.finish_batch([file_id])
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(db_file(file_id)["status"], FileStatus.UPLOADED)
+
+    def test_finish_batch_empty_list_is_422(self):
+        response = self.finish_batch([])
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_finish_batch_over_100_ids_is_422(self):
+        response = self.finish_batch([str(uuid.uuid4()) for _ in range(101)])
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_finish_batch_with_non_uuid_id_is_422(self):
+        response = self.finish_batch(["not-a-uuid"])
+        self.assertEqual(response.status_code, 422, response.text)
+
+    def test_finish_batch_with_invalid_token_is_401(self):
+        ids = self.prepared_batch([5])
+        response = self.finish_batch(ids, token="not-a-real-token")
+        self.assertEqual(response.status_code, 401, response.text)
+
+    # =============================================================================
+    # Batch round trip
+    # =============================================================================
+    def test_batch_transfer_round_trip(self):
+        ids = self.prepared_batch([3, 4, 5])
+        self.storage_has(dict(zip(ids, [3, 4, 5])))
+        self.assertEqual(self.finish_batch(ids).status_code, 200)
+
+        pending = self.client.get(CHECK_PENDING, headers=auth(self.receiver_token))
+        self.assertCountEqual([f["id"] for f in pending.json()["data"]["files"]], ids)
+
+        download = self.client.get(PREPARE_DOWNLOAD, headers=auth(self.receiver_token))
+        self.assertEqual(len(download.json()["data"]["file_objects"]), 3)
+
+        response = self.finish_download(ids)
+        self.assertEqual(response.status_code, 200, response.text)
+        for fid in ids:
+            self.assertEqual(db_file(fid)["status"], FileStatus.DELETED)
 
 
 if __name__ == "__main__":
