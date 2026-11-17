@@ -17,6 +17,11 @@ class SessionStatus(StrEnum):
     REVOKED = "revoked"
 
 
+class PairStatus(StrEnum):
+    ACTIVE = "active"
+    REVOKED = "revoked"
+
+
 class FileStatus(StrEnum):
     PENDING = "pending"
     UPLOADED = "uploaded"
