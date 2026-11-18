@@ -11,6 +11,7 @@ from exceptions import ApiError
 dotenv.load_dotenv("../../.env")
 
 _BASE_URL = os.getenv("API_BASE_URL")
+_APP_ENV = os.getenv("APP_ENV")
 
 
 def batch_upload(token: str, paths: list[str]):
