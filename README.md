@@ -137,7 +137,9 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 - [x] M3 Tests: `python -m unittest` covers the auth failure cases
 - [x] M4 Storage: upload a file to R2 through `storage.py`, prepare the endpoint for mobile uploads.
 - [x] M5 Transfer: download with a presigned URL, verify the checksum, delete
-- [ ] M6 Mobile app preparation: device fingerprint (Android ID) and its own Ed25519 key in secure storage; register + login like the desktop; scan the desktop’s QR (pairing code + server URL) and send a pairing claim to the server, UI design
+- [x] M6 Mobile app preparation: device fingerprint (Android ID) and its own Ed25519 key in secure storage; register + login like the desktop, UI design
+- [x] M6.1 upload functionality
+- [x] M6.2 Tests for batch upload (happy path, other device's id untouched, missing upload → 409)
 - [ ] M7 Pairing: QR pairing adds a second device, long polling
 - [ ] M8 Prepare domain & deploy to Oracle Cloud VM
 - [ ] M9 Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots

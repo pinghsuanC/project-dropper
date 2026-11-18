@@ -4,6 +4,8 @@ __pycache__/
 .ruff_cache/
 __init__.py
 
+desktop/app/helper/device.json
+
 # editor
 *.code-workspace
 .vscode/
@@ -17,3 +19,16 @@ __init__.py
 server/data/
 *.sqlite3
 *.db
+
+# desktop files for testing
+desktop/test_asset
+
+# don't push until finished
+API.md
+
+# ignore claude for this proj
+/.claude
+CLAUDE.md
+
+# per-machine device id (written after register)
+desktop/app/helper/device.json
