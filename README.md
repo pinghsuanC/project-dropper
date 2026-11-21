@@ -11,7 +11,7 @@ Devices log in with their own keys. No passwords.
 | Desktop client | Python scripts |
 | Phone | Expo (separate repo) |
 | File storage | Cloudflare R2 (S3-compatible) |
-| Deployment | AWS |
+| Deployment | Oracle VM |
 
 ## Project layout
 
@@ -140,6 +140,19 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 - [x] M6 Mobile app preparation: device fingerprint (Android ID) and its own Ed25519 key in secure storage; register + login like the desktop, UI design
 - [x] M6.1 upload functionality
 - [x] M6.2 Tests for batch upload (happy path, other device's id untouched, missing upload → 409)
-- [ ] M7 Pairing: QR pairing adds a second device, long polling
-- [ ] M8 Prepare domain & deploy to Oracle Cloud VM
-- [ ] M9 Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots
+- [x] M7 Pairing: QR pairing adds a second device, classify files by file types
+- [ ] M8 Prepare domain & deploy to Oracle Cloud VM, set up CD / docker
+- [ ] M9 Mobile functionality upgrades (propertiy screen, daily quote fetch, unregister, file rename, delete files from server); desktop upgrade (unregister)
+- [ ] M9 Mobile app polish (update GIFs, UI updates, workflow end-to-end testing) 
+- [ ] M10 Entirety Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots & clean up
+
+- [ ] Automate desktop to ping every configured minutes
+
+## Future items
+- GIF loading system from R2
+- Instead of a while loop on desktpp, use web socket to wait for pairing
+- login for mobile, or 2FA
+- White list Oracle server
+- For IOS compatibility, make the mobiel side into a webapp
+- Hook up with local AI agent to classify & rename the files
+- Server web app for some visual

@@ -17,9 +17,10 @@ class SessionStatus(StrEnum):
     REVOKED = "revoked"
 
 
-class PairStatus(StrEnum):
-    ACTIVE = "active"
-    REVOKED = "revoked"
+class PairingRequestStatus(StrEnum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
 
 
 class FileStatus(StrEnum):
@@ -27,3 +28,8 @@ class FileStatus(StrEnum):
     UPLOADED = "uploaded"
     DELETED = "deleted"
     DOWNLOADED = "downloaded"
+
+
+class DevicePairStatus(StrEnum):
+    ACTIVE = "active"
+    REVOKED = "revoked"

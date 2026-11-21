@@ -18,5 +18,6 @@ class DeviceHelper:
             return None
         return json.loads(DEVICE_FILE.read_text())["device_id"]
 
+    @staticmethod
     def delete_device_id() -> None:
         DEVICE_FILE.unlink(missing_ok=True)

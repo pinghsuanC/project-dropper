@@ -6,7 +6,8 @@ import requests
 
 from app.helper.device_helper import DeviceHelper
 from app.helper.file_helper import FileHelper
-from exceptions import ApiError
+from app.helper.utility import _check
+from enums import AppEnv
 
 dotenv.load_dotenv("../../.env")
 
@@ -151,6 +152,9 @@ def download_files(token: str):
         temp_path = file_path.with_name(file_path.name + ".part")
         sha256 = hashlib.sha256()
         with requests.get(file_obj["download_url"], stream=True, timeout=60) as r:
+            if r.status_code == 404 and _APP_ENV == AppEnv.DEV:
+                print("File not found, skipping 1.")
+                continue
             r.raise_for_status()
 
             with open(temp_path, "wb") as out:
@@ -187,13 +191,3 @@ def download_files(token: str):
     print(response["message"])
 
     return
-
-
-def _check(response):
-    if response.ok:
-        return response.json()
-    try:
-        detail = response.json().get("detail", response.text)
-    except ValueError:  # body wasn't JSON (e.g. a crash page)
-        detail = response.text
-    raise ApiError(response.status_code, detail)

@@ -7,39 +7,42 @@ import requests
 from app.auth.device_crypto import DeviceCrypto
 from app.auth.device_fingerprint_processor import DeviceFingerprintProcessor
 from app.helper.device_helper import DeviceHelper
+from app.helper.utility import _check
 from enums import Platform
-from exceptions import ApiError
 
 dotenv.load_dotenv("../../.env")
 
 _BASE_URL = os.getenv("API_BASE_URL")
 
 
-def get_challenge(no_print: bool = False):
+def get_challenge():
     response = requests.post(
         f"{_BASE_URL}/auth/challenge",
         json={"device_id": DeviceHelper.load_device_id()},
         timeout=5,
     )
     data = _check(response)
-    if not no_print:
-        print(data["message"])
+    # print(data["message"])
     challenge = data["data"]["challenge"]
     return challenge
 
 
 def verify_challenge(device_id: str, challenge: str, signature: str):
+    device_fingerprint_processor = DeviceFingerprintProcessor()
+    device_fingerprint = device_fingerprint_processor.get_device_fingerprint()
+
     response = requests.post(
         f"{_BASE_URL}/auth/verify-challenge",
         json={
             "device_id": device_id,
             "challenge": challenge,
             "signature": signature,
+            "fingerprint": device_fingerprint,
         },
         timeout=5,
     )
     data = _check(response)
-    print(data["message"])
+    # print(data["message"])
     token = data["data"]["token"]
     return token
 
@@ -69,11 +72,12 @@ def register_device():
     return device_id
 
 
-def _check(response):
-    if response.ok:
-        return response.json()
-    try:
-        detail = response.json().get("detail", response.text)
-    except ValueError:  # body wasn't JSON (e.g. a crash page)
-        detail = response.text
-    raise ApiError(response.status_code, detail)
+def get_current_device_session(token: str):
+    response = requests.get(
+        f"{_BASE_URL}/auth/me",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=5,
+    )
+    data = _check(response)
+    print(data["message"])
+    return data["data"]

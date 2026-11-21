@@ -63,12 +63,18 @@ def verify_challeng(body: ChallengeVerifyRequest):
     device_id = str(body.device_id)
     challenge = body.challenge
     signature = body.signature
+    fingerprint = body.fingerprint
 
     device = device_repo.get_device_by_id(device_id)
     if device is None:
         raise HTTPException(status_code=404, detail="Device not found")
     if device["status"] != DeviceStatus.ACTIVE:
         raise HTTPException(status_code=403, detail="Device revoked")
+
+    if not crypto.verify_fingerprint(
+        device["fingerprint"], crypto.hash_input(fingerprint)
+    ):
+        raise unauthorized
 
     challenge_row = challenge_repo.get_challenge(challenge)
     challenge_repo.clear_stale_challenge(device_id)

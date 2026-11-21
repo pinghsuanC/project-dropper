@@ -1,21 +1,27 @@
-from app.auth.device_auth_client import DeviceAuthClient
-from app.auth.device_session import DeviceSession
+import requests
+
 from app.clients import file_apis
+from app.desktop_client import DesktopClient
 
 
 def main():
-    # Run once on setting up, if need to change the key, delete the device_key.pem file to regenerate
-    device_auth = DeviceAuthClient()
-    token = device_auth.login()
-    check_me = DeviceSession.check_device_session(token)
-    print("Session info:", check_me)
+    try:
+        DesktopClient().execute()
+    except (requests.ConnectionError, requests.Timeout) as e:
+        print(f"Server not reachable. Aborted. ({e.__class__.__name__})")
+        print(f"{'=' * 66}\n")
+    except requests.HTTPError as e:
+        # only raised where you call raise_for_status()
+        print(f"Server error {e.__class__.__name__}")
+        print(f"{'=' * 66}\n")
 
-    # test_upload(token)
-    # file_apis.download_files(token)
 
-    # download file from receiver
-    # test_batch_upload(token)
-    test_download(token)
+# test_upload(token)
+# file_apis.download_files(token)
+
+# download file from receiver
+# test_batch_upload(token)
+# file_apis.download_files(token)
 
 
 # img = qrcode.make("the link you send to your phone")
@@ -29,10 +35,6 @@ def test_batch_upload(token):
 def test_upload(token):
     file_apis.upload_file(token, path="./test.txt")
     file_apis.upload_file(token, path="./img.png")
-
-
-def test_download(token):
-    file_apis.download_files(token)
 
 
 if __name__ == "__main__":

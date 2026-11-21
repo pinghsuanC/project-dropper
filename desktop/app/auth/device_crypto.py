@@ -13,14 +13,17 @@ class DeviceCrypto:
         self.key_path = Path(PRIVATE_KEY_FILE)
         self.private_key = self._load_or_create_private_key_pem()
 
-    def _load_or_create_private_key_pem(self) -> str:
+    def _load_or_create_private_key_pem(self) -> Ed25519PrivateKey:
         # private key is stored in a file, if it doesn't exist, generate a new one and save it
 
         # Load from file if it exists
         if self.key_path.is_file():
-            return serialization.load_pem_private_key(
+            key = serialization.load_pem_private_key(
                 self.key_path.read_bytes(), password=None
             )
+            if not isinstance(key, Ed25519PrivateKey):
+                raise ValueError("device_key.pem is not an Ed25519 key")
+            return key
 
         # Generate a new Ed25519 private key
         private_key = Ed25519PrivateKey.generate()

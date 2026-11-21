@@ -1,5 +1,4 @@
 import hashlib
-import hmac
 import subprocess
 
 import dotenv
@@ -9,13 +8,6 @@ dotenv.load_dotenv()
 
 class DeviceFingerprintProcessor:
     def __init__(self):
-        pass
-
-    def verify(self, received_hash: str) -> str:
-        generated_hash = self.generate()
-        return hmac.compare_digest(generated_hash, received_hash)
-
-    def get_public(self) -> str:
         pass
 
     # Generate a plain sha hashed unique device fingerprint based on system information

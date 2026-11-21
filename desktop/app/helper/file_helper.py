@@ -1,12 +1,21 @@
 import hashlib
 import mimetypes
 import os
+import re
 from pathlib import Path
 
 import dotenv
 
 dotenv.load_dotenv()
 DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR")
+_RESERVED = {
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    *(f"COM{i}" for i in range(1, 10)),
+    *(f"LPT{i}" for i in range(1, 10)),
+}
 
 
 class FileHelper:
@@ -53,10 +62,30 @@ class FileHelper:
         # make sure there is a folder
         candidate = directory / name
         base = Path(Path(name).name)
+        # TODO: add ai agent to rename the files to a certain format
+        folder_type = FileHelper._safe_folder_name(base.suffix)
+
+        Path(directory / folder_type).mkdir(parents=True, exist_ok=True)
+
         if (candidate).exists():
             counter = 1
             while candidate.exists():
-                candidate = directory / f"{base.stem}-{counter}{base.suffix}"
+                candidate = (
+                    directory / folder_type / f"{base.stem}-{counter}{base.suffix}"
+                )
                 counter += 1
 
         return candidate
+
+    @staticmethod
+    def _safe_folder_name(name: str, replacement: str = "_") -> str:
+        """Make a string safe to use as a file or folder name on Windows, macOS, and Linux."""
+        name = re.sub(
+            r'[<>:"/\\|?*\x00-\x1f]', replacement, name
+        )  # forbidden + control characters
+        name = name.strip().rstrip(".")  # no trailing dots or spaces
+        if name.split(".")[0].upper() in _RESERVED:  # CON, CON.txt, ...
+            name = f"{replacement}{name}"
+        if name in {"", ".", ".."}:  # nothing usable left
+            name = "unnamed"
+        return name[:200]

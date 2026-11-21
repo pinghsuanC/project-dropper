@@ -117,13 +117,14 @@ class FileFlowTests(unittest.TestCase):
     def login_new_device(self) -> tuple[str, str]:
         """Register a device and run challenge/verify. Returns (device_id, token)."""
         key = Ed25519PrivateKey.generate()
+        fingerprint = uuid.uuid4().hex
         response = self.client.post(
             REGISTER,
             json={
                 "name": "test-device",
                 "platform": "desktop",
                 "public_key": public_pem(key),
-                "fingerprint": uuid.uuid4().hex,
+                "fingerprint": fingerprint,
             },
         )
         self.assertIn(response.status_code, (200, 201), response.text)
@@ -139,6 +140,7 @@ class FileFlowTests(unittest.TestCase):
                 "device_id": device_id,
                 "challenge": challenge,
                 "signature": sign(key, challenge),
+                "fingerprint": fingerprint,
             },
         )
         self.assertEqual(response.status_code, 200, response.text)

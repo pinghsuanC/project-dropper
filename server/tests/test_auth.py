@@ -67,6 +67,7 @@ class AuthFlowTests(unittest.TestCase):
         # `with` makes TestClient run the lifespan, so init_db() creates the tables
         cls._client_cm = TestClient(app)
         cls.client = cls._client_cm.__enter__()
+        cls.fingerprints = {}  # device_id -> raw fingerprint sent at register
 
     @classmethod
     def tearDownClass(cls):
@@ -75,30 +76,44 @@ class AuthFlowTests(unittest.TestCase):
 
     # Each test registers its own fresh device, so tests don't affect each other
     def register(self, key: Ed25519PrivateKey) -> str:
+        fingerprint = uuid.uuid4().hex
         response = self.client.post(
             REGISTER,
             json={
                 "name": "test-device",
                 "platform": "desktop",
                 "public_key": public_pem(key),
-                "fingerprint": uuid.uuid4().hex,
+                "fingerprint": fingerprint,
             },
         )
         self.assertIn(response.status_code, (200, 201), response.text)
-        return response.json()["data"]["device_id"]
+        device_id = response.json()["data"]["device_id"]
+        # remember it so verify() can send the same raw fingerprint back
+        self.fingerprints[device_id] = fingerprint
+        return device_id
 
     def get_challenge(self, device_id: str) -> str:
         response = self.client.post(CHALLENGE, json={"device_id": device_id})
         self.assertEqual(response.status_code, 200, response.text)
         return response.json()["data"]["challenge"]
 
-    def verify(self, device_id: str, challenge: str, signature: str):
+    def verify(
+        self,
+        device_id: str,
+        challenge: str,
+        signature: str,
+        fingerprint: str | None = None,
+    ):
+        """Defaults to the fingerprint the device registered with."""
+        if fingerprint is None:
+            fingerprint = self.fingerprints.get(device_id, uuid.uuid4().hex)
         return self.client.post(
             VERIFY,
             json={
                 "device_id": device_id,
                 "challenge": challenge,
                 "signature": signature,
+                "fingerprint": fingerprint,
             },
         )
 
@@ -268,6 +283,36 @@ class AuthFlowTests(unittest.TestCase):
         response = self.verify(device_id, fake_challenge, signature)
 
         self.assertEqual(response.status_code, 401, response.text)
+
+    def test_wrong_fingerprint_is_rejected(self):
+        """Right key and challenge, but a fingerprint other than the registered one -> 401."""
+        key = new_key()
+        device_id = self.register(key)
+        challenge = self.get_challenge(device_id)
+
+        response = self.verify(
+            device_id, challenge, sign(key, challenge), fingerprint=uuid.uuid4().hex
+        )
+
+        self.assertEqual(response.status_code, 401, response.text)
+        self.assertNotIn("data", response.json())
+
+    def test_missing_fingerprint_is_422(self):
+        """Verify body without a fingerprint -> 422."""
+        key = new_key()
+        device_id = self.register(key)
+        challenge = self.get_challenge(device_id)
+
+        response = self.client.post(
+            VERIFY,
+            json={
+                "device_id": device_id,
+                "challenge": challenge,
+                "signature": sign(key, challenge),
+            },
+        )
+
+        self.assertEqual(response.status_code, 422, response.text)
 
     def test_me_invalid_authorization_header(self):
         """Garbage Bearer token → 401."""
