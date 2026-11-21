@@ -1,15 +1,18 @@
+import requests
+
 from app.clients import file_apis
 from app.desktop_client import DesktopClient
 
 
 def main():
-
     try:
-        desktopClient = DesktopClient()
-        desktopClient.execute()
-    except Exception:
-        print("Server not active. Aborted.")
-        # print(e)
+        DesktopClient().execute()
+    except (requests.ConnectionError, requests.Timeout) as e:
+        print(f"Server not reachable. Aborted. ({e.__class__.__name__})")
+        print(f"{'=' * 66}\n")
+    except requests.HTTPError as e:
+        # only raised where you call raise_for_status()
+        print(f"Server error {e.__class__.__name__}")
         print(f"{'=' * 66}\n")
 
 
