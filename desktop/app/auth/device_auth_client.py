@@ -11,6 +11,7 @@ class DeviceAuthClient:
         # load or create on start up
         self.device_auth = DeviceCrypto()
         self.device_id = DeviceHelper.load_device_id()
+        self.token = None  # TODO: expirations, automatic re-logins
 
     def login(self) -> str:
         """Check current device registration. If not registered, register and update the local device id."""
@@ -21,6 +22,7 @@ class DeviceAuthClient:
             return self._authenticate()
         except ApiError as e:
             print(e)
+            return str(e)
 
     def ensure_registered(self) -> None:
         """Return the local device id, registering first if there isn't one."""
@@ -41,7 +43,7 @@ class DeviceAuthClient:
                 return
         else:
             try:
-                auth_apis.get_challenge(no_print=True)
+                auth_apis.get_challenge()
             except ApiError as e:
                 if e.status != 404:
                     raise
@@ -50,8 +52,28 @@ class DeviceAuthClient:
                 self.device_id = auth_apis.register_device()
                 return
 
-    def _authenticate(self):
+    def _authenticate(self) -> str:
+        if not self.device_id:
+            raise AttributeError("Empty device id. Check your registration flow.")
+
         # ask for and return signature
         challenge = auth_apis.get_challenge()
         signature = self.device_auth.sign(challenge)
-        return auth_apis.verify_challenge(self.device_id, challenge, signature)
+        self.token = auth_apis.verify_challenge(self.device_id, challenge, signature)
+        return self.token
+
+    def login_session(self) -> dict:
+        if not self.token:
+            # try to log in and get the token if not logged in yet
+            self.token = self.login()
+
+        if not self.token:
+            raise AttributeError("Token is empty. Login first.")
+
+        return auth_apis.get_current_device_session(self.token)
+
+    def get_token(self) -> str | None:
+        if not self.token:
+            self.login_session()
+
+        return self.token
