@@ -1,5 +1,7 @@
+import uuid
+
 from db.database_connection import DatabaseConnection
-from enums import DeviceStatus, PairStatus
+from enums import DevicePairStatus, DeviceStatus
 
 
 def get_paired_device(device_id: str) -> dict | None:
@@ -24,8 +26,26 @@ def get_paired_device(device_id: str) -> dict | None:
             """,
             {
                 "me": device_id,
-                "pair_status": PairStatus.ACTIVE.value,
+                "pair_status": DevicePairStatus.ACTIVE.value,
                 "device_status": DeviceStatus.ACTIVE.value,
             },
         ).fetchone()
     return dict(row) if row else None
+
+
+def create_device_pair(device_1_id: str, device_2_id: str, status: str) -> dict | None:
+    device_pair_id = str(uuid.uuid7())
+    first, second = sorted([device_1_id, device_2_id])
+    with DatabaseConnection() as conn:
+        row = conn.execute(
+            "INSERT INTO device_pair (id, device_1_id, device_2_id, status) "
+            "VALUES (?, ?, ?, ?) RETURNING *",
+            (
+                device_pair_id,
+                first,
+                second,
+                status,
+            ),
+        ).fetchone()
+
+        return dict(row) if row else None

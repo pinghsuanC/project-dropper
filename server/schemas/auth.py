@@ -31,3 +31,4 @@ class ChallengeVerifyRequest(BaseModel):
     device_id: UUID
     challenge: str
     signature: str
+    fingerprint: str

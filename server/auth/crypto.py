@@ -16,12 +16,24 @@ dotenv.load_dotenv()
 HMAC_SECRET = os.getenv("HMAC_SECRET")
 
 
+def generate_pairing_request_token() -> str:
+    return secrets.token_urlsafe(16)
+
+
+def hash_pairing_request_token(token) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 def generate_session_token() -> str:
     return secrets.token_urlsafe(32)
 
 
 def hash_session_token(token) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def verify_fingerprint(device_fingerprint: str, input_fingerprint):
+    return hmac.compare_digest(device_fingerprint, input_fingerprint)
 
 
 def verify_signature(device_public_key, challenge, signature) -> bool:

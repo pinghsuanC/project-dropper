@@ -12,3 +12,7 @@ class DeviceAlreadyExists(Exception):
 
 class ChallengeAlreadyExists(Exception):
     pass
+
+
+class PairingRequestAlreadyUsedError(Exception):
+    """The pairing request was claimed, expired, or removed before this claim could finish."""
