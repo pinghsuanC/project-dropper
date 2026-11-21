@@ -32,3 +32,6 @@ CLAUDE.md
 
 # per-machine device id (written after register)
 desktop/app/helper/device.json
+
+# deploy notes (local only)
+DEPLOY.md

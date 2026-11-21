@@ -25,7 +25,7 @@ from fastapi.testclient import TestClient
 
 import db.database_connection as db_conn
 from db.database_connection import DatabaseConnection
-from enums import DeviceStatus, PairStatus
+from enums import DevicePairStatus, DeviceStatus
 from server import app
 
 REGISTER = "/auth/register"
@@ -55,7 +55,7 @@ def auth(token: str) -> dict:
 
 
 def insert_pair(
-    a: str, b: str, status: str = PairStatus.ACTIVE, created_at: int | None = None
+    a: str, b: str, status: str = DevicePairStatus.ACTIVE, created_at: int | None = None
 ) -> None:
     """Insert a pair the way the server must: smaller id first."""
     device_1_id, device_2_id = sorted((a, b))
@@ -94,13 +94,14 @@ class PairedDevicesTests(unittest.TestCase):
     def login_new_device(self, name: str, platform: str) -> tuple[str, str]:
         """Register a device and run challenge/verify. Returns (device_id, token)."""
         key = Ed25519PrivateKey.generate()
+        fingerprint = uuid.uuid4().hex
         response = self.client.post(
             REGISTER,
             json={
                 "name": name,
                 "platform": platform,
                 "public_key": public_pem(key),
-                "fingerprint": uuid.uuid4().hex,
+                "fingerprint": fingerprint,
             },
         )
         self.assertIn(response.status_code, (200, 201), response.text)
@@ -116,6 +117,7 @@ class PairedDevicesTests(unittest.TestCase):
                 "device_id": device_id,
                 "challenge": challenge,
                 "signature": sign(key, challenge),
+                "fingerprint": fingerprint,
             },
         )
         self.assertEqual(response.status_code, 200, response.text)
@@ -163,13 +165,13 @@ class PairedDevicesTests(unittest.TestCase):
         self.assertEqual(self.paired_id(self.phone_token), other_id)
 
     def test_revoked_pair_is_hidden(self):
-        insert_pair(self.phone_id, self.pc_id, status=PairStatus.REVOKED)
+        insert_pair(self.phone_id, self.pc_id, status=DevicePairStatus.REVOKED)
         self.assertIsNone(self.paired_id(self.phone_token))
 
     def test_revoked_newest_pair_falls_back_to_active_one(self):
         other_id, _ = self.login_new_device("laptop", "desktop")
         insert_pair(self.phone_id, self.pc_id, created_at=1000)
-        insert_pair(self.phone_id, other_id, PairStatus.REVOKED, created_at=2000)
+        insert_pair(self.phone_id, other_id, DevicePairStatus.REVOKED, created_at=2000)
         self.assertEqual(self.paired_id(self.phone_token), self.pc_id)
 
     def test_revoked_partner_device_is_hidden(self):

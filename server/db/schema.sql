@@ -24,19 +24,20 @@ CREATE TABLE IF NOT EXISTS pairing_request (
     device_2_id     TEXT,
     status          TEXT    NOT NULL,
     token_hashed    TEXT    NOT NULL UNIQUE,
-    created_at      INTEGER    NOT NULL DEFAULT (unixepoch()),
-    expires_at      INTEGER    NOT NULL,
+    created_at      INTEGER     NOT NULL DEFAULT (unixepoch()),
+    expires_at      INTEGER     NOT NULL DEFAULT (unixepoch() + 180),
 
     FOREIGN KEY (device_1_id) REFERENCES device_info(id),
     FOREIGN KEY (device_2_id) REFERENCES device_info(id),
+    CHECK (device_2_id IS NULL OR device_1_id <> device_2_id),
     CHECK (status IN ('pending', 'accepted', 'rejected'))
 );
 
 
 CREATE TABLE IF NOT EXISTS device_pair (
     id           TEXT NOT NULL PRIMARY KEY,
-    device_1_id  TEXT NOT NULL,
-    device_2_id  TEXT NOT NULL,
+    device_1_id  TEXT NOT NULL, -- the device that started pairing (shows the QR)
+    device_2_id  TEXT NOT NULL, -- the device that claimed the code (NULL until claimed)
     status       TEXT NOT NULL,
     created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
 
