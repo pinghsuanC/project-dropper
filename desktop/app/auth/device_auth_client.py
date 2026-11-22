@@ -13,6 +13,13 @@ class DeviceAuthClient:
         self.device_id = DeviceHelper.load_device_id()
         self.token = None  # TODO: expirations, automatic re-logins
 
+        self._check_health()
+
+    def _check_health(self) -> None:
+        status = auth_apis.check_health()
+        if status != "ok":
+            raise ConnectionError
+
     def login(self) -> str:
         """Check current device registration. If not registered, register and update the local device id."""
 

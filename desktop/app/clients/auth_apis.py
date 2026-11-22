@@ -15,6 +15,15 @@ dotenv.load_dotenv("../../.env")
 _BASE_URL = os.getenv("API_BASE_URL")
 
 
+def check_health():
+    response = requests.get(
+        f"{_BASE_URL}/health",
+        timeout=5,
+    )
+    status = response.json()["status"]
+    return status
+
+
 def get_challenge():
     response = requests.post(
         f"{_BASE_URL}/auth/challenge",
