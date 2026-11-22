@@ -1,19 +1,17 @@
 import json
 import time
-from datetime import UTC, datetime
 
 import qrcode
 
 from app.auth.device_auth_client import DeviceAuthClient
 from app.clients import file_apis, pairing_apis
+from app.helper import utility
 
 
 class DesktopClient:
     def __init__(self):
         # Run once on setting up, if need to change the key, delete the device_key.pem file to regenerate
         print(f"\n{'=' * 66}")
-        # TODO: add check server. raise connection error if server is not active
-
         self.token = None
         self.paired_device = None
 
@@ -53,13 +51,10 @@ class DesktopClient:
             else:
                 print("Bye.")
         else:
-            paired_at_time = datetime.fromtimestamp(
-                self.paired_device["paired_at"], tz=UTC
-            ).astimezone()
             print(
-                f"You are paired with the following device since {paired_at_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Device name: {self.paired_device['name']}\n"
-                f"Platform: {self.paired_device['platform']}"
+                f"You have been paired with the following device since {utility.format_date(self.paired_device['paired_at'])}\n"
+                f"  Device name: {self.paired_device['name']}\n"
+                f"  Platform: {self.paired_device['platform']}"
             )
 
     def _start_pairing(self) -> dict | None:
