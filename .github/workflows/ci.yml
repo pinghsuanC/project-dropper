@@ -46,3 +46,19 @@ jobs:
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Delete the PR's branch once it's merged (only branches in this repo, never main).
+      # Done here, not in a separate "on: closed" workflow: a merge made with
+      # GITHUB_TOKEN does not trigger other workflows.
+      - name: Delete merged branch
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'main'
+        run: |
+          if gh api -X DELETE "repos/$REPO/git/refs/heads/$BRANCH"; then
+            echo "Deleted branch $BRANCH"
+          else
+            echo "Branch $BRANCH already gone or could not be deleted; skipping."
+          fi
+        env:
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.head_ref }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
