@@ -154,5 +154,7 @@ The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same
 - login for mobile, or 2FA
 - White list Oracle server
 - For IOS compatibility, make the mobiel side into a webapp
-- Hook up with local AI agent to classify & rename the files
+- Hook up with local AI agent to rename the files & classify files into different folders
 - Server web app for some visual
+- Mobile side preview functionality
+- Mobile side ability to rename file

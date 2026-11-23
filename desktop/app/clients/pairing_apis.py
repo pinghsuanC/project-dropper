@@ -38,7 +38,7 @@ def get_pairing_request(token: str, request_id: str):
     )
     response = _check(response)
     data = response["data"]
-    print(response["message"])
+    # print(response["message"])
 
     return data
 

@@ -405,8 +405,11 @@ class PairingRequestTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["message"], "Valid pairing request found.")
         request = body["data"]
-        self.assertEqual(set(request), {"id", "status", "created_at", "expires_at"})
+        self.assertEqual(
+            set(request), {"id", "paired_with", "status", "created_at", "expires_at"}
+        )
         self.assertEqual(request["id"], data["pairing_request_id"])
+        self.assertIsNone(request["paired_with"])  # nobody has claimed it yet
         self.assertEqual(request["status"], PairingRequestStatus.PENDING)
         self.assertIsInstance(request["created_at"], int)
         self.assertEqual(request["expires_at"], data["expires_at"])
@@ -421,6 +424,8 @@ class PairingRequestTests(unittest.TestCase):
         self.assertEqual(
             response.json()["data"]["status"], PairingRequestStatus.ACCEPTED
         )
+        # the claimer's device name
+        self.assertEqual(response.json()["data"]["paired_with"], "phone")
 
     def test_get_does_not_leak_token_hash(self):
         data = self.start()
