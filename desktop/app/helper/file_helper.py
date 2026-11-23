@@ -60,19 +60,19 @@ class FileHelper:
     def get_safe_file_path(name: str, directory: Path) -> Path:
 
         # make sure there is a folder
-        candidate = directory / name
-        base = Path(Path(name).name)
         # TODO: add ai agent to rename the files to a certain format
-        folder_type = FileHelper._safe_folder_name(base.suffix)
+        base = Path(Path(name).name)  # strip any folder parts
+        ext = base.suffix.lower().lstrip(".")  # ".PNG" → "png"
+        folder = directory / FileHelper._safe_folder_name(ext or "other")
+        folder.mkdir(parents=True, exist_ok=True)
 
-        Path(directory / folder_type).mkdir(parents=True, exist_ok=True)
+        candidate = folder / base.name
+        counter = 1
 
         if (candidate).exists():
             counter = 1
             while candidate.exists():
-                candidate = (
-                    directory / folder_type / f"{base.stem}-{counter}{base.suffix}"
-                )
+                candidate = directory / folder / f"{base.stem}-{counter}{base.suffix}"
                 counter += 1
 
         return candidate

@@ -53,6 +53,7 @@ class PairingRequestClaim(BaseModel):
 
 class PairingRequstData(BaseModel):
     id: str
+    paired_with: str | None
     status: PairingRequestStatus
     created_at: int
     expires_at: int
