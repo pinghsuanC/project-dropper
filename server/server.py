@@ -1,18 +1,14 @@
-import os
 from contextlib import asynccontextmanager
 
-import dotenv
 from fastapi import FastAPI, HTTPException
 
 from auth.routes import router as auth_router
+from config import ENABLE_DOCS
 from db.database_connection import DatabaseConnection
 from devices.routes import router as device_router
 from files.routes import router as file_router
 from pairing.routes import router as pairing_router
 from schemas.app import HealthResponse
-
-dotenv.load_dotenv()
-ENABLE_DOCS = os.getenv("APP_ENV").lower() != "prod"
 
 
 @asynccontextmanager

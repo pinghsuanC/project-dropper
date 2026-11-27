@@ -9,25 +9,22 @@ Run from inside server/:
 import base64
 import hashlib
 import os
-import tempfile
 import time
 import unittest
 import uuid
-from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-# --- Point the app at a throwaway database BEFORE importing it ---------------
-_TMP_DIR = tempfile.TemporaryDirectory()
-_TEST_DB = Path(_TMP_DIR.name) / "test_pairing.db"
-os.environ["DB_PATH"] = str(_TEST_DB)
+# CI has no .env; config.py requires HMAC_SECRET at import, so set a default
+# BEFORE importing the app. The DB is patched to TEST_DB_PATH in setUpClass.
 os.environ.setdefault("HMAC_SECRET", "test-secret-not-for-production")
 
 from fastapi.testclient import TestClient
 
 import db.database_connection as db_conn
 import repositories.pairing_request as pairing_request_repo
+from config import TEST_DB_PATH
 from db.database_connection import DatabaseConnection
 from enums import DevicePairStatus, DeviceStatus, PairingRequestStatus
 from exceptions import PairingRequestAlreadyUsedError
@@ -110,7 +107,9 @@ class PairingRequestTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls._orig_db_path = db_conn.DB_PATH
-        db_conn.DB_PATH = _TEST_DB
+        TEST_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TEST_DB_PATH.unlink(missing_ok=True)  # start from an empty DB
+        db_conn.DB_PATH = TEST_DB_PATH
 
         cls._client_cm = TestClient(app)
         cls.client = cls._client_cm.__enter__()
@@ -119,7 +118,7 @@ class PairingRequestTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
         db_conn.DB_PATH = cls._orig_db_path
-        _TMP_DIR.cleanup()
+        TEST_DB_PATH.unlink(missing_ok=True)
 
     def setUp(self):
         # Fresh devices per test, so pairs/requests from other tests never interfere
