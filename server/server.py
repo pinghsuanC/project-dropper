@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 
 from auth.routes import router as auth_router
+from config import ENABLE_DOCS
 from db.database_connection import DatabaseConnection
 from devices.routes import router as device_router
 from files.routes import router as file_router
@@ -17,7 +18,12 @@ async def lifespan(app):
     # anything after yield runs on shutdown
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if ENABLE_DOCS else None,
+    redoc_url="/redoc" if ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_DOCS else None,
+)
 
 
 app.include_router(auth_router)

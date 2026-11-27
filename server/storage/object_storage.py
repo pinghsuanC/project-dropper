@@ -1,18 +1,7 @@
-import os
-
 import boto3
-import dotenv
 from botocore.exceptions import ClientError
 
-dotenv.load_dotenv()
-
-
-R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
-R2_BUCKET = os.getenv("R2_BUCKET")
-R2_S3_API = os.getenv("R2_S3_API")
-R2_API_TOKEN = os.getenv("R2_API_TOKEN")
-R2_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
-R2_SECRET_ACCRESS_KEY = os.getenv("R2_SECRET_ACCRESS_KEY")
+from config import R2_ACCESS_KEY_ID, R2_BUCKET, R2_S3_API, R2_SECRET_ACCRESS_KEY
 
 
 class ObjectStorage:

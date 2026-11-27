@@ -11,26 +11,21 @@ Object storage (R2) is mocked: no network calls are made.
 
 import base64
 import os
-import tempfile
 import unittest
 import uuid
-from pathlib import Path
 from unittest.mock import patch
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-# --- Point the app at a throwaway database BEFORE importing it ---------------
-# db/database_connection.py reads DB_PATH when it is imported. An absolute
-# path wins over SERVER_DIR / DB_PATH, and load_dotenv() doesn't override it.
-_TMP_DIR = tempfile.TemporaryDirectory()
-_TEST_DB = Path(_TMP_DIR.name) / "test_file.db"
-os.environ["DB_PATH"] = str(_TEST_DB)
+# CI has no .env; config.py requires HMAC_SECRET at import, so set a default
+# BEFORE importing the app. The DB is patched to TEST_DB_PATH in setUpClass.
 os.environ.setdefault("HMAC_SECRET", "test-secret-not-for-production")
 
 from fastapi.testclient import TestClient
 
 import db.database_connection as db_conn
+from config import TEST_DB_PATH
 from db.database_connection import DatabaseConnection
 from enums import DeviceStatus, FileStatus
 from server import app
@@ -85,10 +80,10 @@ def set_device_status(device_id: str, status: str) -> None:
 class FileFlowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # If another test module imported the db module first, DB_PATH points at
-        # its database; force ours for the duration of this class.
         cls._orig_db_path = db_conn.DB_PATH
-        db_conn.DB_PATH = _TEST_DB
+        TEST_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TEST_DB_PATH.unlink(missing_ok=True)  # start from an empty DB
+        db_conn.DB_PATH = TEST_DB_PATH
 
         cls._client_cm = TestClient(app)
         cls.client = cls._client_cm.__enter__()
@@ -97,7 +92,7 @@ class FileFlowTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
         db_conn.DB_PATH = cls._orig_db_path
-        _TMP_DIR.cleanup()
+        TEST_DB_PATH.unlink(missing_ok=True)
 
     def setUp(self):
         # Replace object storage with a mock for every test

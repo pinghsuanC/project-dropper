@@ -10,27 +10,20 @@ Needs:  pip install httpx   (FastAPI's TestClient uses it)
 import base64
 import os
 import secrets
-import tempfile
 import unittest
 import uuid
-from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-# --- Point the app at a throwaway database BEFORE importing it ---------------
-# db/connection.py reads DB_LOCATION when it is imported, so this must come
-# first. load_dotenv() does not override variables that are already set, so
-# your real .env can't sneak the real database back in.
-_TMP_DIR = tempfile.TemporaryDirectory()
-_TEST_DB = Path(_TMP_DIR.name) / "test_file.db"
-os.environ["DB_LOCATION"] = str(Path(_TMP_DIR.name) / "test.db")
+# CI has no .env; config.py requires HMAC_SECRET at import, so set a default
+# BEFORE importing the app. The DB is patched to TEST_DB_PATH in setUpClass.
 os.environ.setdefault("HMAC_SECRET", "test-secret-not-for-production")
-os.environ["DB_PATH"] = str(_TEST_DB)
-# ↑ use whatever name your crypto.py reads; CI has no .env, so it needs a value
 
 from fastapi.testclient import TestClient
 
+import db.database_connection as db_conn
+from config import TEST_DB_PATH
 from db.database_connection import DatabaseConnection
 from server import app
 
@@ -64,6 +57,11 @@ def sign(key: Ed25519PrivateKey, challenge: str) -> str:
 class AuthFlowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls._orig_db_path = db_conn.DB_PATH
+        TEST_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        TEST_DB_PATH.unlink(missing_ok=True)  # start from an empty DB
+        db_conn.DB_PATH = TEST_DB_PATH
+
         # `with` makes TestClient run the lifespan, so init_db() creates the tables
         cls._client_cm = TestClient(app)
         cls.client = cls._client_cm.__enter__()
@@ -72,7 +70,8 @@ class AuthFlowTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls._client_cm.__exit__(None, None, None)
-        _TMP_DIR.cleanup()
+        db_conn.DB_PATH = cls._orig_db_path
+        TEST_DB_PATH.unlink(missing_ok=True)
 
     # Each test registers its own fresh device, so tests don't affect each other
     def register(self, key: Ed25519PrivateKey) -> str:

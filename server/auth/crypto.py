@@ -2,18 +2,14 @@ import base64
 import binascii
 import hashlib
 import hmac
-import os
 import secrets
 
-import dotenv
 from cryptography.exceptions import InvalidSignature, UnsupportedAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from config import HMAC_SECRET
 from exceptions import InvalidPublicKey
-
-dotenv.load_dotenv()
-HMAC_SECRET = os.getenv("HMAC_SECRET")
 
 
 def generate_pairing_request_token() -> str:

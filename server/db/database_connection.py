@@ -1,15 +1,8 @@
-import os
 import sqlite3
 from pathlib import Path
 
-import dotenv
+from config import DB_PATH
 
-SERVER_DIR = Path(__file__).resolve().parent.parent  # db/ → server/
-dotenv.load_dotenv(SERVER_DIR / ".env")
-db_path = SERVER_DIR / os.getenv("DB_PATH")
-if not db_path:
-    raise RuntimeError("DB_PATH is not set (check server/.env)")
-DB_PATH = SERVER_DIR / db_path
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
