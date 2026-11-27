@@ -1,160 +1,107 @@
-# File Dropper
+# 📮 Postie98
 
-Send files from my phone to my PC (and back) through my own server.
-Devices log in with their own keys. No passwords.
+Send files from my phone to my PC through my own server — with a Windows 98–style phone app.
+
+Devices log in with their own Ed25519 keys (no passwords), pair by scanning a QR code, and transfer files
+directly to and from Cloudflare R2 with presigned URLs, so file bytes never pass through the API server.
+
+## Features
+
+- **Passwordless device auth** — each device keeps its private key locally; the server verifies a signed,
+  single-use, short-lived challenge and issues a session token (only its hash is stored)
+- **Hardware-bound identity** — a keyed (HMAC) fingerprint of the device's hardware IDs is checked at login
+- **QR pairing** — the desktop shows a one-time code; the phone scans it to pair (and to receive its access credentials)
+- **Direct-to-storage transfer** — batch uploads and downloads via presigned R2 URLs; uploads are verified in
+  storage before they count, downloads are checksum-verified (SHA-256) before the file is deleted from R2
+- **Safe downloads** — files land in per-type folders with sanitized, non-clashing names
+- **Zero open ports** — the server sits behind a Cloudflare Tunnel and Cloudflare Access (service tokens)
+
+## Architecture
+
+```
+phone (Expo) ──┐                                         ┌── Oracle Cloud VM (no inbound ports)
+               ├── Cloudflare Access ── Cloudflare Tunnel ┤     ├── FastAPI + SQLite (Docker)
+desktop (Py) ──┘   (service tokens)                       │     └── cloudflared
+                                                          │
+phone ⇄ Cloudflare R2 (presigned URLs, file bytes) ⇄ desktop
+```
+
+Details: [`DEPLOY.md`](DEPLOY.md) · API contract: [`API.md`](API.md)
 
 ## Stack
 
 | Part | Tech |
 |---|---|
-| Server | Python + FastAPI + uvicorn + sqlite3 |
-| Desktop client | Python scripts |
-| Phone | Expo (separate repo) |
-| File storage | Cloudflare R2 (S3-compatible) |
-| Deployment | Oracle VM |
+| Server | Python 3.14, FastAPI, Pydantic, SQLite, `cryptography` (Ed25519) |
+| Desktop client | Python (requests, qrcode) |
+| Phone | Expo / React Native, Windows 98–inspired UI (separate repo) |
+| File storage | Cloudflare R2 (S3-compatible, boto3) |
+| Hosting | Oracle Cloud VM (Ubuntu), Docker, Cloudflare Tunnel + Access |
+| CI/CD | GitHub Actions: Ruff + tests → image to GHCR → deploy through the tunnel |
 
-## Project layout
+## Repository layout
 
 ```
-file-dropper/
-  server/      FastAPI server, own .venv + requirements.txt
-  desktop/     PC client, own .venv + requirements.txt
-  file-dropper.code-workspace
-  README.md
+postie98/
+  server/        FastAPI app (routes, repositories, schemas, tests, Dockerfile)
+  desktop/       PC client (auth, pairing, downloads)
+  .github/       CI/CD workflows
+  API.md         API contract
+  DEPLOY.md      deployment and operations
+  NOTES.md       local dev notes and troubleshooting
 ```
 
-Expo is in its own repository.
+## Running locally
 
----
-
-## Setup (first time, or after cloning on a new machine)
-
-*Do this separately inside `server/` and inside `desktop/`.*
-
+Server (from `server/`, with its venv active):
 ```powershell
-# create the venv (the label shows in the prompt as (server) or (desktop))
-python -m venv .venv --prompt server
-
-# activate it (PowerShell)
-.venv\Scripts\Activate.ps1
-
-# install dependencies
 pip install -r requirements.txt
+uvicorn server:app --reload          # http://127.0.0.1:8000/docs
 ```
 
-If PowerShell says scripts are disabled:
-
+Desktop client (from `desktop/`, second terminal):
 ```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-> A venv can't be moved or renamed. If you move the folder, delete `.venv` and recreate it.
-
-## Day-to-day
-
-### Run the server (from `server/`)
-
-```powershell
-uvicorn server:app --reload
-# if "uvicorn is not recognized":
-python -m uvicorn server:app --reload
-```
-
-`server:app` means file `server.py`, variable `app = FastAPI()`.
-
-- API: http://127.0.0.1:8000
-- Interactive docs: http://127.0.0.1:8000/docs
-- Health check: http://127.0.0.1:8000/health
-
-### Run the desktop client (from `desktop/`, in a second terminal)
-
-```powershell
+pip install -r requirements.txt
 python main.py
 ```
 
-### After installing a new package
+Both read their settings from a local `.env` (never committed) — copy `.env.example` and fill it in.
+More setup details and common errors: [`NOTES.md`](NOTES.md).
+
+## Tests and code quality
 
 ```powershell
-pip freeze > requirements.txt
+cd server
+python -m unittest discover -s tests -v
+coverage run -m unittest discover -s tests && coverage report -m
+ruff check . && ruff format --check .        # from the repo root
 ```
 
-### Lint and format
-
-```powershell
-ruff check .
-ruff format .
-```
-
-### Editor (VS Code)
-
-- Install the **Ruff** extension (Astral Software, `charliermarsh.ruff`)
-- Each folder's `.vscode/settings.json` sets its interpreter and enables format + fix on save
-
-### Deactivate the venv
-
-```powershell
-deactivate
-```
-
----
-
-## Which venv am I in?
-
-```powershell
-python -c "import sys; print(sys.executable)"   # full path of the running Python
-pip -V                                          # where pip will install
-where python                                    # every python on PATH, first one wins
-```
-
-In VS Code: Ctrl+Shift+P → **Python: Select Interpreter** → pick the folder → pick its `.venv`.
-New terminals: the ⌄ next to **+** in the terminal panel → choose `server` or `desktop`.
-
----
-
-## Environment variables
-
-Secrets live in `.env` (never committed). Copy `.env.example` and fill in real values.
-The code loads them with `python-dotenv` (`load_dotenv()`), so it works the same in VS Code, a plain terminal, and on the server VM.
-
----
-
-## Troubleshooting
-
-| Error | Cause | Fix |
-|---|---|---|
-| `uvicorn is not recognized` | Wrong or inactive venv, or uvicorn not installed | Activate `server/.venv`, `pip install -r requirements.txt`, or use `python -m uvicorn ...` |
-| `No Python at ...` after moving folders | Venvs store absolute paths | Delete `.venv` and recreate it |
-| `No module named 'PIL'` | `qrcode.make()` needs Pillow for images | `pip install "qrcode[pil]"`, then refreeze |
-| `Cannot convert str to a buffer` in `load_pem_private_key` | Passed the file path instead of the file contents | Pass `Path(...).read_bytes()` |
-| Data not saved in sqlite | Missing `conn.commit()` | Commit after inserts |
-
----
+CI runs Ruff and the tests on every pull request; merges to `main` deploy automatically.
 
 ## Roadmap
 
-- [x] M1 Server skeleton: tables, save + fetch a device, initial register round calls deskto -> server -> response
-- [x] M2 Auth: get challenge → sign → server verify and return session token -> desktop gets session token; reject bad and expired challenges
-- [x] M3 Tests: `python -m unittest` covers the auth failure cases
-- [x] M4 Storage: upload a file to R2 through `storage.py`, prepare the endpoint for mobile uploads.
-- [x] M5 Transfer: download with a presigned URL, verify the checksum, delete
-- [x] M6 Mobile app preparation: device fingerprint (Android ID) and its own Ed25519 key in secure storage; register + login like the desktop, UI design
-- [x] M6.1 upload functionality
-- [x] M6.2 Tests for batch upload (happy path, other device's id untouched, missing upload → 409)
-- [x] M7 Pairing: QR pairing adds a second device, classify files by file types
-- [ ] M8 Prepare domain & deploy to Oracle Cloud VM, set up CD / docker
-- [ ] M9 Mobile functionality upgrades (propertiy screen, daily quote fetch, unregister, file rename, delete files from server); desktop upgrade (unregister)
-- [ ] M9 Mobile app polish (update GIFs, UI updates, workflow end-to-end testing) 
-- [ ] M10 Entirety Polish: R2 lifecycle rule, deploy (Oracle VM + Cloudflare Tunnel), README screenshots & clean up
+- [x] **M1** Server skeleton: schema, device registration
+- [x] **M2** Auth: challenge → sign → verify → session token; reject replayed and expired challenges
+- [x] **M3** Tests for the auth failure cases, in CI
+- [x] **M4** Storage: presigned R2 uploads, verified in storage
+- [x] **M5** Transfer: presigned downloads, checksum verification, cleanup
+- [x] **M6** Phone app: own key in secure storage, register + login, UI design, batch upload
+- [x] **M7** Pairing via QR; downloads sorted into per-type folders
+- [ ] **M8** Deploy: Docker image, Oracle VM, Cloudflare Tunnel + Access, CD from GitHub Actions
+- [ ] **M9** Features: unregister (phone + desktop), outbox, rename and delete files on the server, daily quote
+- [ ] **M10** Phone polish: GIFs, UI updates, end-to-end testing
+- [ ] **M11** Project polish: screenshots, cleanup, desktop auto-polling at a configurable interval
 
-- [ ] Automate desktop to ping every configured minutes
+## Ideas for later
 
-## Future items
-- GIF loading system from R2
-- Instead of a while loop on desktpp, use web socket to wait for pairing
-- login for mobile, or 2FA
-- White list Oracle server
-- For IOS compatibility, make the mobiel side into a webapp
-- Hook up with local AI agent to rename the files & classify files into different folders
-- Server web app for some visual
-- Mobile side preview functionality
-- Mobile side ability to rename file
+- Desktop waits for pairing over a WebSocket instead of polling
+- Desktop approval step for new pairings ("Pixel 8 wants to pair — accept?")
+- Restrict `/auth/register` to trusted devices (enrollment code or a device limit)
+- Verify Cloudflare Access JWTs in the API (defense in depth)
+- iOS support through a web client (ASP.NET Core)
+- Phone: file previews, renaming before upload, "Share to Postie98"
+- Local AI agent to rename and sort received files
+- Random GIFs served from R2
+- A nicer desktop UI (progress bars, a window instead of the terminal)
+- ESP32 e-ink status display
