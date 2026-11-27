@@ -1,5 +1,7 @@
+import os
 from contextlib import asynccontextmanager
 
+import dotenv
 from fastapi import FastAPI, HTTPException
 
 from auth.routes import router as auth_router
@@ -9,6 +11,9 @@ from files.routes import router as file_router
 from pairing.routes import router as pairing_router
 from schemas.app import HealthResponse
 
+dotenv.load_dotenv()
+ENABLE_DOCS = os.getenv("APP_ENV").lower() != "prod"
+
 
 @asynccontextmanager
 async def lifespan(app):
@@ -17,7 +22,12 @@ async def lifespan(app):
     # anything after yield runs on shutdown
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    docs_url="/docs" if ENABLE_DOCS else None,
+    redoc_url="/redoc" if ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if ENABLE_DOCS else None,
+)
 
 
 app.include_router(auth_router)
