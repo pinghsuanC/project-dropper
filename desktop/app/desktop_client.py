@@ -1,18 +1,14 @@
 import json
-import os
 import time
 
 import qrcode
 
+from app.apis import file_apis, pairing_apis
 from app.auth.device_auth_client import DeviceAuthClient
-from app.clients import file_apis, pairing_apis
 from app.helper import utility
-
-_CLOUDFLARE_SERVICE_TOKEN_CLIENT_ID_MOBILE = os.getenv(
-    "CLOUDFLARE_SERVICE_TOKEN_CLIENT_ID_MOBILE"
-)
-_CLOUDFLARE_SERVICE_TOKEN_CLIENT_SECRET_MOBILE = os.getenv(
-    "CLOUDFLARE_SERVICE_TOKEN_CLIENT_SECRET_MOBILE"
+from config import (
+    CLOUDFLARE_SERVICE_TOKEN_CLIENT_ID_MOBILE,
+    CLOUDFLARE_SERVICE_TOKEN_CLIENT_SECRET_MOBILE,
 )
 
 
@@ -64,6 +60,7 @@ class DesktopClient:
                 self._start_connection()
             else:
                 print("Omitted the server config sharing process.")
+                return
 
             # Start pairing process
             selection = input("Enter 'y' and press Enter to start pairing process...\n")
@@ -151,8 +148,8 @@ class DesktopClient:
     def _print_config_qr(self):
         payload = json.dumps(
             {
-                "cloudflare_client_id": _CLOUDFLARE_SERVICE_TOKEN_CLIENT_ID_MOBILE,
-                "cloudflare_access_key": _CLOUDFLARE_SERVICE_TOKEN_CLIENT_SECRET_MOBILE,
+                "cloudflare_client_id": CLOUDFLARE_SERVICE_TOKEN_CLIENT_ID_MOBILE,
+                "cloudflare_access_key": CLOUDFLARE_SERVICE_TOKEN_CLIENT_SECRET_MOBILE,
             }
         )
 
