@@ -1,0 +1,9 @@
+services:
+  api:
+    image: ghcr.io/pinghsuanc/project-postie98:latest
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"      # only cloudflared on this machine can reach it
+    restart: unless-stopped
