@@ -1,23 +1,17 @@
-import os
 import socket
 
-import dotenv
-import requests
-
+from api_session import api
 from app.auth.device_crypto import DeviceCrypto
 from app.auth.device_fingerprint_processor import DeviceFingerprintProcessor
 from app.helper.device_helper import DeviceHelper
 from app.helper.utility import _check
+from config import API_BASE_URL
 from enums import Platform
-
-dotenv.load_dotenv("../../.env")
-
-_BASE_URL = os.getenv("API_BASE_URL")
 
 
 def check_health():
-    response = requests.get(
-        f"{_BASE_URL}/health",
+    response = api.get(
+        f"{API_BASE_URL}/health",
         timeout=5,
     )
     status = response.json()["status"]
@@ -25,8 +19,8 @@ def check_health():
 
 
 def get_challenge():
-    response = requests.post(
-        f"{_BASE_URL}/auth/challenge",
+    response = api.post(
+        f"{API_BASE_URL}/auth/challenge",
         json={"device_id": DeviceHelper.load_device_id()},
         timeout=5,
     )
@@ -40,8 +34,8 @@ def verify_challenge(device_id: str, challenge: str, signature: str):
     device_fingerprint_processor = DeviceFingerprintProcessor()
     device_fingerprint = device_fingerprint_processor.get_device_fingerprint()
 
-    response = requests.post(
-        f"{_BASE_URL}/auth/verify-challenge",
+    response = api.post(
+        f"{API_BASE_URL}/auth/verify-challenge",
         json={
             "device_id": device_id,
             "challenge": challenge,
@@ -63,8 +57,8 @@ def register_device():
     public_key = device_auth.get_public_key()
     device_fingerprint = device_fingerprint_processor.get_device_fingerprint()
     name = socket.gethostname()
-    response = requests.post(
-        f"{_BASE_URL}/auth/register",
+    response = api.post(
+        f"{API_BASE_URL}/auth/register",
         json={
             "name": name,
             "platform": Platform.DESKTOP,
@@ -82,8 +76,8 @@ def register_device():
 
 
 def get_current_device_session(token: str):
-    response = requests.get(
-        f"{_BASE_URL}/auth/me",
+    response = api.get(
+        f"{API_BASE_URL}/auth/me",
         headers={"Authorization": f"Bearer {token}"},
         timeout=5,
     )

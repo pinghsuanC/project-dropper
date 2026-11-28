@@ -1,13 +1,10 @@
 import hashlib
 import mimetypes
-import os
 import re
 from pathlib import Path
 
-import dotenv
+from config import DOWNLOAD_DIR
 
-dotenv.load_dotenv()
-DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR")
 _RESERVED = {
     "CON",
     "PRN",

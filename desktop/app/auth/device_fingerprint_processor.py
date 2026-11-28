@@ -1,10 +1,6 @@
 import hashlib
 import subprocess
 
-import dotenv
-
-dotenv.load_dotenv()
-
 
 class DeviceFingerprintProcessor:
     def __init__(self):

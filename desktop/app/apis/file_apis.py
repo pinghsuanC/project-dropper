@@ -1,18 +1,13 @@
 import hashlib
-import os
 
-import dotenv
 import requests
 
+from api_session import api
 from app.helper.device_helper import DeviceHelper
 from app.helper.file_helper import FileHelper
 from app.helper.utility import _check
+from config import API_BASE_URL, APP_ENV
 from enums import AppEnv
-
-dotenv.load_dotenv("../../.env")
-
-_BASE_URL = os.getenv("API_BASE_URL")
-_APP_ENV = os.getenv("APP_ENV")
 
 
 def batch_upload(token: str, paths: list[str]):
@@ -31,8 +26,8 @@ def batch_upload(token: str, paths: list[str]):
     ]
 
     # ask for presigned upload url
-    response = requests.post(
-        f"{_BASE_URL}/files/prepare-batch-upload",
+    response = api.post(
+        f"{API_BASE_URL}/files/prepare-batch-upload",
         json={"files": file_info_list, "receiver_id": receiver_id},
         headers=headers,
         timeout=5,
@@ -50,14 +45,15 @@ def batch_upload(token: str, paths: list[str]):
         upload_info = upload_info_by_ref[file_info["client_ref"]]
         path = paths_by_ref[file_info["client_ref"]]
         with open(path, "rb") as f:
+            # plain requests on purpose: R2 must never get the Cloudflare token
             requests.put(
                 upload_info["upload_url"], data=f, timeout=60
             ).raise_for_status()
             uploaded_ids.append(upload_info["file_id"])
 
     # tell server it's done
-    response = requests.post(
-        f"{_BASE_URL}/files/finish-batch-upload",
+    response = api.post(
+        f"{API_BASE_URL}/files/finish-batch-upload",
         json={"file_ids": uploaded_ids},
         headers=headers,
         timeout=5,
@@ -79,8 +75,8 @@ def upload_file(token: str, path: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     # ask for presigned upload url
-    response = requests.post(
-        f"{_BASE_URL}/files/prepare-upload",
+    response = api.post(
+        f"{API_BASE_URL}/files/prepare-upload",
         json={**info, "receiver_id": receiver_id},
         headers=headers,
         timeout=5,
@@ -91,11 +87,12 @@ def upload_file(token: str, path: str):
 
     # upload the bytes to R2
     with open(path, "rb") as f:
+        # plain requests on purpose: R2 must never get the Cloudflare token
         requests.put(data["upload_url"], data=f, timeout=60).raise_for_status()
 
     # tell server it's done
-    response = requests.post(
-        f"{_BASE_URL}/files/finish-upload",
+    response = api.post(
+        f"{API_BASE_URL}/files/finish-upload",
         json={"file_id": data["file_id"]},
         headers=headers,
         timeout=5,
@@ -114,8 +111,8 @@ def download_files(token: str):
     headers = {"Authorization": f"Bearer {token}"}
 
     # ask for presigned upload url
-    response = requests.get(
-        f"{_BASE_URL}/files/check-pending-download",
+    response = api.get(
+        f"{API_BASE_URL}/files/check-pending-download",
         headers=headers,
         timeout=5,
     )
@@ -127,8 +124,8 @@ def download_files(token: str):
         return
 
     # get pre-signed download urls
-    response = requests.get(
-        f"{_BASE_URL}/files/prepare-download",
+    response = api.get(
+        f"{API_BASE_URL}/files/prepare-download",
         headers=headers,
         timeout=5,
     )
@@ -151,8 +148,9 @@ def download_files(token: str):
         )
         temp_path = file_path.with_name(file_path.name + ".part")
         sha256 = hashlib.sha256()
+        # plain requests on purpose: R2 must never get the Cloudflare token
         with requests.get(file_obj["download_url"], stream=True, timeout=60) as r:
-            if r.status_code == 404 and _APP_ENV == AppEnv.DEV:
+            if r.status_code == 404 and APP_ENV == AppEnv.DEV:
                 print("File not found, skipping 1.")
                 continue
             r.raise_for_status()
@@ -180,8 +178,8 @@ def download_files(token: str):
         return
 
     # tell server it's done
-    response = requests.post(
-        f"{_BASE_URL}/files/finish-download",
+    response = api.post(
+        f"{API_BASE_URL}/files/finish-download",
         json={"file_ids": finished_ids},
         headers=headers,
         timeout=5,

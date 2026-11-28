@@ -1,7 +1,7 @@
 import requests
 
+from app.apis import auth_apis
 from app.auth.device_crypto import DeviceCrypto
-from app.clients import auth_apis
 from app.helper.device_helper import DeviceHelper
 from exceptions import ApiError
 
